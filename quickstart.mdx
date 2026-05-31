@@ -1,47 +1,203 @@
 ---
-title: "Quickstart"
-description: "Begin with a guide on the fastest path to a successful outcome"
+title: "Quickstart: Run the EDA Pipeline Locally"
+sidebarTitle: Quickstart
+description: Get the project running on your machine in minutes — clone the repo, install dependencies, configure credentials, and execute all five notebooks in order.
 ---
 
-Describe how someone begins using your product. What is the first thing they need to do? Are there any prerequisites?
-
-A quickstart should take someone from zero to using your product. They'll get a quick win and a sense of what they can accomplish.
+This guide walks you through setting up the project locally and running the full five-notebook analysis pipeline. You can complete most of the analysis without API credentials — the Adzuna API is only required if you want to re-collect raw data from scratch.
 
 ## Prerequisites
 
-Before you begin, you must have:
+Before you begin, make sure you have the following installed:
 
-- Requirement one (for example, Node.js 18+, a free account, an API key)
-- Requirement two (for example, a compatible device, a compatible browser, a compatible operating system)
-
-## Get started
+- **Python 3.10+**
+- **pip** (or a virtual environment manager such as `venv` or `conda`)
+- **Jupyter** (included via `ipykernel` in `requirements.txt`)
+- **Git**
 
 <Steps>
-  <Step title="Install">
-    Describe how to install your product or sign up.
+
+  <Step title="Clone the Repository and Install Dependencies">
+    Clone the project from GitHub and install all required Python packages into your environment.
 
     ```bash
-    npm install your-package
+    git clone https://github.com/Gema-Villanueva/proyecto-eda-roles-datos.git
+    cd proyecto-eda-roles-datos
+    pip install -r requirements.txt
     ```
+
+    This installs the full stack used across all notebooks:
+
+    | Category | Key Packages |
+    |---|---|
+    | Data manipulation | `pandas 3.0.3`, `numpy 2.4.6` |
+    | Visualization | `matplotlib 3.10.9`, `seaborn 0.13.2`, `plotly 6.7.0` |
+    | Statistics | `scipy 1.17.1`, `statsmodels 0.14.6` |
+    | API / env | `requests 2.34.2`, `python-dotenv 1.2.2` |
+    | Notebooks | `ipykernel 7.2.0`, `ipython 9.14.0`, `nbformat 5.10.4` |
+    | Reporting | `python-docx 1.2.0`, `kaleido 1.3.0`, `squarify 0.4.4` |
+
+    <Tip>
+      It's good practice to install inside a virtual environment to avoid dependency conflicts with other projects:
+
+      ```bash
+      python -m venv .venv
+      source .venv/bin/activate   # On Windows: .venv\Scripts\activate
+      pip install -r requirements.txt
+      ```
+    </Tip>
   </Step>
-  <Step title="Configure">
-    Describe any setup or configuration needed before first use.
+
+  <Step title="Configure Environment Variables">
+    The data collection notebook uses the Adzuna API, which requires credentials. Create a `.env` file at the project root by copying the provided example:
 
     ```bash
-    your-cli init
+    cp .env.example .env
     ```
-  </Step>
-  <Step title="Run it">
-    Show the first thing a user does to see it working.
+
+    Then open `.env` and fill in your credentials:
 
     ```bash
-    your-cli start
+    ADZUNA_APP_ID=your_app_id
+    ADZUNA_APP_KEY=your_app_key
     ```
+
+    To obtain credentials, register for a free account at [developer.adzuna.com](https://developer.adzuna.com). The free tier provides **up to 1,000 requests per month**, which is sufficient to reproduce the data collection step.
+
+    <Note>
+      Adzuna credentials are **only required for notebook 01** (`01_data_collection.ipynb`). Notebooks 02 through 05 read from the pre-cleaned CSVs in `data/clean/` and will run without any API key configured.
+    </Note>
+
+    <Warning>
+      Never commit your `.env` file to version control. It is already listed in `.gitignore`, but double-check before pushing to a shared repository.
+    </Warning>
   </Step>
+
+  <Step title="Run the Notebooks in Order">
+    Launch Jupyter and execute the notebooks sequentially. Each notebook depends on the outputs of the previous one.
+
+    ```bash
+    jupyter notebook
+    ```
+
+    Then open and run the notebooks in this order:
+
+    <Tabs>
+      <Tab title="Full Pipeline (01 → 05)">
+        Run all five notebooks if you want to reproduce every step from raw API calls to bias analysis:
+
+        ```
+        notebooks/01_data_collection.ipynb   ← requires Adzuna API key
+        notebooks/02_cleaning.ipynb
+        notebooks/03_eda.ipynb
+        notebooks/04-visualizations.ipynb
+        notebooks/05_bias_analysis.ipynb
+        ```
+
+        Use **Kernel → Restart & Run All** in each notebook to ensure a clean execution state before proceeding to the next.
+      </Tab>
+      <Tab title="Skip Data Collection (02 → 05)">
+        If you want to skip the API step and work directly with the existing cleaned data, start from notebook 02:
+
+        ```
+        notebooks/02_cleaning.ipynb
+        notebooks/03_eda.ipynb
+        notebooks/04-visualizations.ipynb
+        notebooks/05_bias_analysis.ipynb
+        ```
+
+        The `data/clean/` directory already contains the pre-processed CSVs needed for these notebooks.
+      </Tab>
+    </Tabs>
+
+    <Tip>
+      Notebooks 02–05 work with the existing datasets in `data/clean/` and do **not** require an Adzuna API key. If you just want to explore the analysis and visualizations, you can skip notebook 01 entirely and jump straight to cleaning or EDA.
+    </Tip>
+
+    Here is a summary of what each notebook does and what it produces:
+
+    <AccordionGroup>
+      <Accordion title="01_data_collection.ipynb — Adzuna API Ingestion">
+        Authenticates with the Adzuna API using your `.env` credentials and fetches job listings for data roles in Spain. Saves raw JSON responses and outputs initial CSV files to `data/raw/`.
+
+        **Requires:** `ADZUNA_APP_ID`, `ADZUNA_APP_KEY` in `.env`
+        **Produces:** Raw CSVs in `data/raw/`
+      </Accordion>
+      <Accordion title="02_cleaning.ipynb — Data Cleaning & Unification">
+        Merges the three source datasets (Tecnoempleo, Data Science Job Posts, Stack Overflow survey) with the Adzuna data. Standardises column names, normalises job family labels, handles null values, and exports the unified dataset.
+
+        **Requires:** Raw files in `data/raw/` (or pre-existing files)
+        **Produces:** `data/clean/jobs_all_clean.csv`, `data/clean/jobs_clean.csv`, `data/clean/tecno_jobs_clean.csv`, and supplementary CSVs
+      </Accordion>
+      <Accordion title="03_eda.ipynb — Exploratory Data Analysis">
+        Computes summary statistics, skill frequency distributions, salary breakdowns, and geographic analysis. Identifies Python as the most demanded skill and Madrid as the dominant city.
+
+        **Requires:** `data/clean/jobs_all_clean.csv`
+        **Produces:** EDA outputs in `data/eda/`
+      </Accordion>
+      <Accordion title="04-visualizations.ipynb — Chart Generation">
+        Produces charts using matplotlib, seaborn, and plotly (with kaleido for static export). Includes treemaps via squarify. All figures are saved to `images/`.
+
+        **Requires:** `data/clean/` CSVs, `data/eda/` outputs
+        **Produces:** Chart images in `images/`
+      </Accordion>
+      <Accordion title="05_bias_analysis.ipynb — Bias Examination">
+        Analyses potential sources of bias: the 78% salary null rate in Tecnoempleo, Madrid's geographic over-representation, and structural choices in dataset construction that could skew results.
+
+        **Requires:** `data/clean/jobs_all_clean.csv`
+        **Produces:** Bias analysis outputs and supplementary figures
+      </Accordion>
+    </AccordionGroup>
+  </Step>
+
+  <Step title="Explore the Outputs">
+    Once the notebooks have run, results are available in two locations:
+
+    <CardGroup cols={2}>
+      <Card title="Cleaned Datasets" icon="table">
+        All processed CSV files are saved to `data/clean/`. The primary unified dataset is `jobs_all_clean.csv` — **1,542 offers** with **17 columns**, including job family, location, salary, and skills.
+      </Card>
+      <Card title="Generated Charts" icon="image">
+        Visualizations produced by notebook 04 are saved to `images/`. These include skill frequency charts, geographic distribution maps, salary box plots, and treemaps by job family.
+      </Card>
+    </CardGroup>
+
+    Key files to look at after a full run:
+
+    ```
+    data/clean/
+    ├── jobs_all_clean.csv              ← unified dataset (1,542 offers)
+    ├── jobs_clean.csv                  ← cleaned Adzuna + international offers
+    ├── tecno_jobs_clean.csv            ← cleaned Tecnoempleo offers
+    ├── technology_rankings.csv         ← skill frequency rankings
+    └── technologies_clean_long_format.csv
+
+    images/                             ← all generated chart files
+    data/eda/                           ← EDA intermediate outputs
+    ```
+
+    <Info>
+      The `data/raw/` directory is listed in `.gitignore` and is not included in the repository. It will be populated only if you run notebook 01 with valid Adzuna credentials.
+    </Info>
+  </Step>
+
 </Steps>
 
-<Tip>
-  Give people a way to get help. This could be a link to a support page, a chat with a customer support agent, or a forum for your product.
+## What's Next?
 
-  Example: Need help? Reach out to us at [support@yourcompany.com](mailto:support@yourcompany.com).
-</Tip>
+With the pipeline running, explore the individual notebook documentation pages for a deeper explanation of the methods, findings, and code used in each stage.
+
+<CardGroup cols={2}>
+  <Card title="Data Collection" icon="download" href="notebooks/data-collection">
+    Adzuna API setup and ingestion logic
+  </Card>
+  <Card title="Cleaning" icon="broom" href="notebooks/cleaning">
+    Merge strategy and normalisation decisions
+  </Card>
+  <Card title="EDA" icon="magnifying-glass-chart" href="notebooks/eda">
+    Key findings: skills, salaries, and geography
+  </Card>
+  <Card title="Visualizations" icon="chart-line" href="notebooks/visualizations">
+    Chart gallery and plotting techniques
+  </Card>
+</CardGroup>

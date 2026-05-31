@@ -1,0 +1,108 @@
+---
+title: "EDA Roles de Datos en España: Project Introduction"
+sidebarTitle: Introduction
+description: A bootcamp EDA project analyzing 1,542 job offers for data roles in Spain across three datasets, uncovering salary trends, skills, and market insights.
+---
+
+This project is a collaborative exploratory data analysis (EDA) of the Spanish data job market, built as part of a data bootcamp. It aggregates and cleans real job offer data from multiple sources to answer practical questions: which skills employers actually demand, where data jobs are concentrated geographically, how salaries compare across roles, and what biases may exist in the available data. The goal is to give aspiring data professionals a grounded, evidence-based picture of what the job market looks like in Spain in 2025–2026.
+
+## Why This Project Matters
+
+The data job market in Spain is growing fast, but published salary figures are sparse and role definitions vary widely. By combining local job boards, international datasets, and a developer survey, this project builds a more complete picture than any single source could provide — and surfaces the gaps and biases that practitioners should know about before drawing conclusions from raw listings.
+
+## Data Sources
+
+The analysis starts from three raw datasets, each with distinct characteristics and limitations.
+
+<CardGroup cols={3}>
+  <Card title="Tecnoempleo Spain 2026" icon="briefcase">
+    **600 local job offers** scraped from Tecnoempleo, a Spanish tech job board. Covers Spanish-market roles with local context, but **78% of salary fields are null** — making direct salary analysis on this source unreliable without augmentation.
+  </Card>
+  <Card title="Data Science Job Posts 2025" icon="globe">
+    **944 international offers**, of which **143 are based in Spain**. Provides broader role taxonomy and cross-market comparison, though international listings may not reflect local hiring conditions accurately.
+  </Card>
+  <Card title="Stack Overflow Survey 2025" icon="chart-bar">
+    Developer survey responses capturing **technology preferences and adoption trends**. Used primarily for skills and tooling analysis rather than job offer specifics. Most desired technology: **OpenAI GPT (chatbot models)**.
+  </Card>
+</CardGroup>
+
+### How the Unified Dataset Was Built
+
+The three sources were merged, cleaned, and deduplicated into a single file — `jobs_all_clean.csv` — containing **1,542 offers** and **17 columns**. Salary data is present in approximately **69.46% of records**, a significant improvement over the raw Tecnoempleo source.
+
+## Selecting the Adzuna API
+
+To supplement the initial datasets — especially to improve salary coverage — the team evaluated several data collection approaches:
+
+<Accordion title="Why not InfoJobs or Indeed?">
+  Both InfoJobs and Indeed were explored as potential data sources. InfoJobs requires authenticated API access with a lengthy approval process. Indeed actively blocks automated data collection with CAPTCHA challenges and Cloudflare protections, making reliable scraping infeasible within the bootcamp timeline. Both paths were abandoned after initial attempts were blocked.
+</Accordion>
+
+**Adzuna** was selected as the augmentation source because its public API is openly accessible, well-documented, and returns structured JSON with salary fields, job family classifications, and location data. The free tier provides up to 1,000 requests per month — sufficient for the project's scope. Data collection via Adzuna is handled in `01_data_collection.ipynb`.
+
+## Key Findings at a Glance
+
+<CardGroup cols={2}>
+  <Card title="Most Demanded Skill" icon="code">
+    **Python** is the top skill requested across all data job families in Spain, appearing consistently in listings for data science, data engineering, and analytics roles.
+  </Card>
+  <Card title="Dominant Location" icon="location-dot">
+    **Madrid** is the dominant city for data roles, concentrating the largest share of listings by a significant margin over Barcelona and other Spanish cities.
+  </Card>
+  <Card title="Top Job Family" icon="database">
+    **data_science_ai** is the most frequent job family in the unified dataset, reflecting strong employer demand for machine learning and AI-adjacent roles.
+  </Card>
+  <Card title="Salary Coverage" icon="euro-sign">
+    Salary data is available for **~69.46% of offers** in the final dataset — better than the raw sources, but still incomplete enough to warrant caution in salary-based comparisons.
+  </Card>
+</CardGroup>
+
+<Note>
+  The 78% null salary rate in the Tecnoempleo dataset is a known limitation. Conclusions drawn from salary analysis should account for this missingness, which is explored in depth in the bias analysis notebook.
+</Note>
+
+## The Five-Notebook Pipeline
+
+The project is structured as a sequential pipeline of five Jupyter notebooks. Each notebook has a focused scope and passes its outputs to the next stage.
+
+<Steps>
+  <Step title="Data Collection">
+    `01_data_collection.ipynb` — Calls the Adzuna API to retrieve job listings and saves raw responses. Requires valid API credentials in a `.env` file.
+  </Step>
+  <Step title="Cleaning & Preparation">
+    `02_cleaning.ipynb` — Merges the three raw datasets with the Adzuna data, standardises column names, normalises job families, handles nulls, and exports the unified `jobs_all_clean.csv` to `data/clean/`.
+  </Step>
+  <Step title="Exploratory Data Analysis">
+    `03_eda.ipynb` — Computes summary statistics, correlation matrices, skill frequency counts, and geographic distributions. Produces the core quantitative findings.
+  </Step>
+  <Step title="Visualizations">
+    `04-visualizations.ipynb` — Generates publication-quality charts using matplotlib, seaborn, and plotly. Outputs are saved to the `images/` directory and support the final report.
+  </Step>
+  <Step title="Bias Analysis">
+    `05_bias_analysis.ipynb` — Examines potential sources of bias in the data: salary missingness patterns, geographic over-representation of Madrid, and dataset construction choices that may skew conclusions.
+  </Step>
+</Steps>
+
+## Notebook Reference
+
+<CardGroup cols={2}>
+  <Card title="Data Collection" icon="download" href="notebooks/data-collection">
+    Adzuna API integration and raw data retrieval
+  </Card>
+  <Card title="Cleaning" icon="broom" href="notebooks/cleaning">
+    Dataset merging, normalisation, and export
+  </Card>
+  <Card title="EDA" icon="magnifying-glass-chart" href="notebooks/eda">
+    Summary statistics, skill counts, and geographic analysis
+  </Card>
+  <Card title="Visualizations" icon="chart-line" href="notebooks/visualizations">
+    matplotlib, seaborn, and plotly chart generation
+  </Card>
+  <Card title="Bias Analysis" icon="scale-balanced" href="notebooks/bias-analysis">
+    Salary missingness, geographic bias, and dataset caveats
+  </Card>
+</CardGroup>
+
+## Team
+
+This project was built as a bootcamp group assignment. **David** serves as the Data Analyst responsible for data collection — including the Adzuna API integration and the raw ingestion pipeline in `01_data_collection.ipynb`. The broader team contributed to cleaning, analysis, and visualisation across the remaining notebooks.

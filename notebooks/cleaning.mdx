@@ -1,0 +1,177 @@
+---
+title: "Data Cleaning Pipeline: Standardizing Three Sources"
+sidebarTitle: "Data Cleaning"
+description: "Full walkthrough of the cleaning pipeline that unifies df_jobs, df_tecno, df_stack, and df_scraping into consistent, analysis-ready CSV files."
+---
+
+The cleaning notebook (`02_cleaning.ipynb`) is the connective tissue of the project. Its single responsibility is to take four raw, structurally different datasets and produce a family of clean, consistently named files that every downstream notebook can load without extra wrangling. The pipeline is written by Ele and covers everything from path resolution and column normalisation through salary parsing, location cleaning, and a suite of automated validation checks.
+
+## Datasets processed
+
+<CardGroup cols={2}>
+  <Card title="df_jobs" icon="briefcase">
+    `data_science_job_posts_2025.csv` — 944 international data-science offers with skills and salary. Main source for the unified dataset.
+  </Card>
+  <Card title="df_tecno" icon="laptop-code">
+    `tecnoempleo_spain_2026.csv` — 600 Spanish tech offers with Spanish column names. Requires full column rename before it can be joined.
+  </Card>
+  <Card title="df_stack" icon="chart-pie">
+    `stackoverflow_2025_results.csv` — Annual survey responses. Technology columns use PascalCase names that must be converted to `snake_case`.
+  </Card>
+  <Card title="df_scraping" icon="robot">
+    `scraping_jobs_raw.csv` — Offers collected via the Adzuna API. May not exist yet; the notebook creates an empty template if absent.
+  </Card>
+</CardGroup>
+
+## Path setup
+
+The notebook resolves the project root dynamically so it runs correctly whether it is launched from the `notebooks/` subdirectory or the project root:
+
+```python
+from pathlib import Path
+
+# Resolve project root regardless of working directory
+# Resolver raíz del proyecto independientemente del directorio actual
+PROJECT_ROOT = Path.cwd().parent if Path.cwd().name == "notebooks" else Path.cwd()
+
+DATA_RAW   = PROJECT_ROOT / "data" / "raw"
+DATA_CLEAN = PROJECT_ROOT / "data" / "clean"
+
+DATA_RAW.mkdir(parents=True, exist_ok=True)
+DATA_CLEAN.mkdir(parents=True, exist_ok=True)
+```
+
+<Note>
+  All output files land in `data/clean/`. The `DATA_CLEAN.mkdir(parents=True, exist_ok=True)` call ensures the folder is created if it does not already exist, making the notebook safe to run on a fresh clone.
+</Note>
+
+## Naming conventions
+
+The project enforces a consistent style across all produced artefacts:
+
+| Element | Convention |
+|---------|-----------|
+| Column names | English `snake_case` only |
+| Markdown cells | Spanish (project language) |
+| Code comments | Bilingual — Spanish first, English translation after `/ ` |
+| Variable and function names | English throughout |
+
+## Processing blocks
+
+<Accordion title="Block 1 — Imports and initial configuration">
+  Loads `pandas`, `numpy`, `os`, `re`, and `ast`. Sets `display.max_columns` and `display.max_rows`. Creates `DATA_CLEAN` directory if absent.
+</Accordion>
+
+<Accordion title="Block 2 — General cleaning functions">
+  Defines reusable helpers used across all three datasets:
+
+  - `normalize_column_names(df)` — strips accents, lowercases, converts spaces and special characters to underscores.
+  - `apply_column_mapping(df, mapping)` — renames columns from a dictionary, skipping keys that do not exist.
+  - `add_missing_columns(df, required_columns)` — pads a DataFrame with `NaN` columns for any required field that is absent.
+  - `clean_text(value)` / `clean_text_columns(df)` — trims whitespace, converts empty strings and `"nan"/"null"/"none"` literals to `NaN`.
+
+  Also defines the `job_standard_columns` list and the two column-mapping dictionaries (see below).
+</Accordion>
+
+<Accordion title="Block 3 — Scraping template and dataset">
+  Checks for `data/raw/scraping_jobs_raw.csv`. If found, normalises and maps its columns to the standard schema and saves `scraping_jobs_clean.csv`. If not found, writes an empty file with the correct headers so downstream notebooks do not break.
+</Accordion>
+
+<Accordion title="Block 4 — Dataset loading">
+  Reads all four source CSVs from `DATA_RAW` into `df_jobs`, `df_tecno`, `df_stack`, and `df_scraping`. Prints shapes and shows a comparative quality summary (rows, columns, duplicate rows, missing-cell count and percentage).
+</Accordion>
+
+<Accordion title="Block 5 — Per-source cleaning">
+  Each dataset gets its own cleaning pass:
+
+  - **df_jobs** → text cleaning, deduplication, standard columns added.
+  - **df_tecno** → `normalize_column_names` + `tecno_column_mapping` rename (see table below), then text cleaning.
+  - **df_stack** → `stack_technology_column_mapping` rename, technology columns split from wide to long format.
+</Accordion>
+
+<Accordion title="Block 6 — Offer unification">
+  Vertically concatenates `df_jobs_clean`, `df_tecno_clean`, and `scraping_jobs_clean` (all sharing the same `job_standard_columns` schema) into `jobs_all_clean`. Assigns a unique `job_id` to every row and records `source_dataset` so the origin of each offer is traceable.
+
+  **Result: 1,542 offers, 17 columns.**
+</Accordion>
+
+<Accordion title="Block 7 — Skills, salaries, and locations">
+  - Explodes multi-value `skills` strings into `job_skills_long.csv` (one row per offer + skill), linked by `job_id`.
+  - Parses salary strings (e.g. `"35000€ - 45000€"`) into a numeric `salary_clean` column; flags statistical outliers in `salary_clean_outlier`.
+  - Derives `location_clean`, `city_clean`, and boolean `is_remote` from the raw location field.
+</Accordion>
+
+<Accordion title="Block 8 — Final validations">
+  Runs 10 automated checks covering required columns, uniqueness of `job_id`, snake_case compliance, boolean type of `is_remote`, numeric type of `salary_clean`, and presence of all expected output files. Results are saved to `cleaning_validation_summary.csv`.
+</Accordion>
+
+## Column standardisation maps
+
+### TecnoEmpleo → standard schema
+
+| Original (Spanish) | Standardised (English snake_case) |
+|--------------------|-----------------------------------|
+| `titulo` | `job_title` |
+| `empresa` | `company` |
+| `salario` | `salary` |
+| `ubicacion` | `location` |
+| `tipo_de_trabajo` | `job_type` |
+| `fecha_de_publicacion` | `post_date` |
+| `enlace` | `link` |
+
+### Stack Overflow → snake_case
+
+| Original (PascalCase) | Standardised (snake_case) |
+|-----------------------|--------------------------|
+| `ResponseId` | `response_id` |
+| `LanguageHaveWorkedWith` | `language_have_worked_with` |
+| `LanguageWantToWorkWith` | `language_want_to_work_with` |
+| `DatabaseHaveWorkedWith` | `database_have_worked_with` |
+| `DatabaseWantToWorkWith` | `database_want_to_work_with` |
+| `PlatformHaveWorkedWith` | `platform_have_worked_with` |
+| `PlatformWantToWorkWith` | `platform_want_to_work_with` |
+| `WebframeHaveWorkedWith` | `web_framework_have_worked_with` |
+| `WebframeWantToWorkWith` | `web_framework_want_to_work_with` |
+| `DevEnvsHaveWorkedWith` | `development_environment_have_worked_with` |
+| `DevEnvsWantToWorkWith` | `development_environment_want_to_work_with` |
+| `AIModelsHaveWorkedWith` | `ai_model_have_worked_with` |
+| `AIModelsWantToWorkWith` | `ai_model_want_to_work_with` |
+
+## Output files in data/clean/
+
+| File | Rows | Key columns | Purpose |
+|------|------|-------------|---------|
+| `jobs_clean.csv` | 942 | `job_title, company, location, salary, skills, source_dataset` | Cleaned original job postings from df_jobs |
+| `tecno_jobs_clean.csv` | 600 | `job_title, company, location, salary, job_type, post_date, link` | TecnoEmpleo offers with standardised English column names |
+| `scraping_jobs_clean.csv` | varies | all `job_standard_columns` | Adzuna-scraped offers adapted to the common schema |
+| `jobs_all_clean.csv` | **1,542** | `job_id, job_title, company, location, salary_clean, city_clean, is_remote` | **Unified dataset — primary input for EDA and visualisations** |
+| `job_skills_long.csv` | varies | `job_id, job_title, source_dataset, skill` | One row per offer × skill — used for skill-frequency and gap analysis |
+| `stack_tech_columns_clean.csv` | survey rows | `response_id` + tech columns in snake_case | Reduced Stack Overflow base for technology analysis |
+| `technologies_clean_long_format.csv` | varies | `response_id, technology, category, type` | One row per respondent × technology — used and wanted |
+| `technology_rankings.csv` | varies | `category, type, technology, count` | Full ranking of technologies used and wanted |
+| `technology_rankings_used.csv` | 15+ | `technology, count` | Ranking of technologies respondents have worked with |
+| `technology_rankings_wanted.csv` | 15+ | `technology, count` | Ranking of technologies respondents want to work with |
+| `clean_datasets_dictionary.csv` | — | `file, rows, main_columns, intended_use` | Self-documenting index of all clean files |
+| `cleaning_validation_summary.csv` | 10 | `check, passed, detail` | Automated validation results for downstream verification |
+
+<Warning>
+  `jobs_all_clean.csv` is assembled by a vertical concatenation (`pd.concat`), not a JOIN. There is no reliable common key between job offers and Stack Overflow responses, so the two families of datasets remain separate. Comparisons between offer skills and Stack Overflow technology preferences are aggregate indicators, not row-level matches.
+</Warning>
+
+## Known data limitations
+
+<Accordion title="Salary is an approximation">
+  `salary_clean` is parsed from free-text salary strings that may represent ranges, annual figures, or monthly figures depending on the source. It is suitable for exploratory analysis but should not be treated as an exact salary value.
+</Accordion>
+
+<Accordion title="Remote detection is heuristic">
+  The `is_remote` boolean and `city_clean` field are derived from text pattern matching on the raw `location` column. Ambiguous values (e.g. "Hybrid – Spain") may be classified incorrectly in edge cases.
+</Accordion>
+
+<Accordion title="Stack Overflow is not a job-market sample">
+  The Stack Overflow survey reflects self-reported technology experience from a global community of developers who chose to take the survey. It does not directly represent the Spanish job market and should only be used for directional technology-preference analysis.
+</Accordion>
+
+<Accordion title="Skills coverage depends on source">
+  TecnoEmpleo offers rarely include structured skill lists. `job_skills_long.csv` is therefore dominated by data from `df_jobs` (the international dataset), which consistently includes a `skills` column.
+</Accordion>

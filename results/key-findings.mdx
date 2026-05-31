@@ -1,0 +1,135 @@
+---
+title: "Key Findings: EDA Roles de Datos en España"
+sidebarTitle: Key Findings
+description: "Core insights from 1,542 unified Spanish data job offers: role distribution, geography, skills demand, salary coverage, and technology trends."
+---
+
+The EDA Roles de Datos en España project consolidates job market data from three distinct sources into a unified dataset of **1,542 offers**, enabling a structured analysis of the Spanish data profession landscape as of 2025–2026. This page summarises the most significant findings across role distribution, geography, skills, technology trends, and salary availability.
+
+## Dataset Overview
+
+The unified dataset was assembled from three primary sources and standardised into a shared schema of 17 columns. Cleaning and harmonisation — converting disparate formats into comparable records — was the most critical phase of the pipeline.
+
+<CardGroup cols={3}>
+  <Card title="1,542 Offers" icon="database">
+    Total unified job postings after deduplication and cleaning across all three sources.
+  </Card>
+  <Card title="17 Columns" icon="table-columns">
+    Standardised schema covering role, location, salary, modality, skills, seniority, and source metadata.
+  </Card>
+  <Card title="69.46% Salary Coverage" icon="circle-dollar-to-slot">
+    Proportion of offers that include a usable `salary_clean` value after range-to-midpoint conversion.
+  </Card>
+</CardGroup>
+
+<Info>
+  The largest single source is `df_jobs` (data_science_job_posts_2025.csv) with **942 records**, though many of these are international postings — only 143 entries in that source are explicitly Spanish. The remaining sources, `df_tecno` (Tecnoempleo) and `df_scraping` (Adzuna), cover the Spanish market more directly.
+</Info>
+
+## Role Distribution
+
+The Spanish data job market is heavily weighted towards machine learning and AI disciplines. The `data_science_ai` job family is the single most frequent category in the unified dataset, reflecting both genuine market demand and a likely overrepresentation due to source selection.
+
+<Steps>
+  <Step title="data_science_ai dominates">
+    The `data_science_ai` family accounts for the largest share of postings. This includes roles such as Data Scientist, ML Engineer, and AI Engineer. The prevalence of this category across all three sources suggests consistent demand rather than a single-source artefact.
+  </Step>
+  <Step title="data_engineering follows">
+    Data engineering roles — covering pipeline development, data infrastructure, and ETL/ELT work — represent the second most common family, reflecting the growing need for production-grade data systems.
+  </Step>
+  <Step title="analytics and BI complete the picture">
+    Analytics and business intelligence roles are well represented, particularly in larger organisations and consultancies. These tend to cluster in Madrid and Barcelona.
+  </Step>
+</Steps>
+
+<Note>
+  Job family classification is rule-based (regex patterns applied to job titles and descriptions), not ML-based. Edge cases and ambiguous titles may be misclassified. See the [Limitations](/results/limitations) page for details.
+</Note>
+
+## Geographic Distribution
+
+Madrid is the dominant location for data roles in Spain by a significant margin, followed by Barcelona. Together, these two cities concentrate the majority of all postings in the dataset.
+
+- **Madrid**: Most frequent `clean_location` across all sources. Strong presence of both national and multinational employers.
+- **Barcelona**: Second most frequent city. Notable tech and startup ecosystem concentration.
+- **Remote and hybrid roles**: Partially obscured by the high `unknown` work modality rate (see below).
+- **Other cities**: Seville, Valencia, and Bilbao appear in the dataset but at substantially lower volumes.
+
+<Info>
+  Geographic concentration in Madrid and Barcelona is a real market characteristic, but it is also amplified by source bias — Tecnoempleo and Adzuna listings skew towards major urban centres. Offers from smaller cities or fully remote roles without a stated location may be under-captured.
+</Info>
+
+## Work Modality
+
+One of the more notable data quality findings of the EDA concerns work modality. Despite remote and hybrid work being widely discussed in the Spanish labour market, the most frequent value in the `work_modality` column is `unknown`.
+
+<Warning>
+  A `work_modality` value of `unknown` does **not** mean the role is on-site. It means the original job posting did not clearly state whether the role was remote, hybrid, or on-site. This is simultaneously a data quality issue and a reflection of how many Spanish job postings are written — modality is often described in free text or omitted entirely.
+</Warning>
+
+This limits the ability to draw firm conclusions about the prevalence of remote work in the Spanish data market from this dataset alone. Where modality is explicitly stated, hybrid and on-site roles are more common than fully remote positions.
+
+## Skills Demand
+
+Python is the single most demanded skill across all job postings in the unified dataset. The top skills reflect both foundational requirements and contemporary specialisations.
+
+<CardGroup cols={2}>
+  <Card title="Python" icon="python">
+    **Rank 1 — Most demanded skill.** Appears in a majority of data science, engineering, and analytics postings alike. Effectively a baseline requirement across all data families.
+  </Card>
+  <Card title="SQL" icon="database">
+    **Rank 2.** Consistently required across data engineering, analytics, and BI roles. Still a non-negotiable skill despite the rise of higher-level abstractions.
+  </Card>
+  <Card title="Machine Learning" icon="brain">
+    **Top 3.** Demanded primarily in `data_science_ai` roles but increasingly present in data engineering job descriptions as well.
+  </Card>
+  <Card title="Cloud Platforms" icon="cloud">
+    **Growing demand.** AWS, Azure, and GCP appear frequently, particularly in data engineering and MLOps-adjacent roles.
+  </Card>
+</CardGroup>
+
+Skill rankings are derived from the `job_skills_long` format, where each row represents one offer–skill pair. This enables straightforward frequency analysis but means that offers listing many skills contribute proportionally more weight to the rankings.
+
+## Technology Trends (Stack Overflow 2025)
+
+The Stack Overflow Developer Survey 2025 (~90,000 global respondents) provides a complementary perspective on technology adoption. In the `ai_model_tool` category, OpenAI's GPT models lead by a wide margin among technologies currently **used** by developers.
+
+| Rank | Technology | Usage Count |
+|------|-----------|-------------|
+| 1 | openAI GPT (chatbot models) | 13,424 |
+| 2 | Anthropic Claude Sonnet | 7,063 |
+| 3 | Gemini Flash (general purpose) | 5,823 |
+| 4 | openAI Reasoning models | 5,716 |
+
+<Tip>
+  Stack Overflow survey data represents a **global developer community**, not Spanish job market demand specifically. Use it as a directional signal for technology adoption trends, not as a direct measure of what Spanish employers are hiring for. See the [Technology Rankings](/results/technology-rankings) page for the full breakdown.
+</Tip>
+
+## Salary Coverage
+
+Salary data is available for **69.46%** of unified offers. The `salary_clean` field is derived by taking the midpoint of advertised salary ranges and converting to a comparable EUR figure. The remaining 30.54% of offers either omitted salary information entirely or used formats that could not be reliably parsed.
+
+<Accordion title="Why is salary coverage incomplete?">
+  Several factors contribute to missing salary data:
+
+  - **df_tecno** (Tecnoempleo) has approximately 78% null salary rate — Spanish job boards frequently omit salary ranges.
+  - Some offers describe compensation as "competitive" or "according to experience" without numeric values.
+  - Currency conversion and range parsing failures account for a small proportion of missing values.
+  - The `salary_clean_outlier` flag identifies statistical outliers in the distribution, which are excluded from comparative analyses to avoid distortion from international (particularly US-based) offers.
+</Accordion>
+
+---
+
+## Explore Further
+
+<CardGroup cols={3}>
+  <Card title="Technology Rankings" icon="ranking-star" href="/results/technology-rankings">
+    Full breakdown of used vs. wanted technologies from Stack Overflow 2025, including AI tools, languages, databases, and cloud platforms.
+  </Card>
+  <Card title="Salary Analysis" icon="chart-line" href="/results/salary-analysis">
+    Detailed salary methodology, coverage gaps, source comparison, and geographic and role-based salary distributions.
+  </Card>
+  <Card title="Limitations" icon="triangle-exclamation" href="/results/limitations">
+    Known biases, data quality issues, and methodological constraints to consider when interpreting these findings.
+  </Card>
+</CardGroup>

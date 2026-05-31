@@ -1,0 +1,160 @@
+---
+title: "Exploratory Data Analysis: Diagnosing the Job Market"
+sidebarTitle: "EDA"
+description: "A diagnostic EDA of 1,542 unified Spanish data-role offers — covering structure, nulls, roles, locations, salaries, skills, and Stack Overflow technology trends."
+---
+
+The EDA notebook (`03_eda.ipynb`) is explicitly positioned as a **diagnostic phase**, not an inferential one. Its job is to reveal the shape of the data, surface patterns, and flag limitations — not to draw final conclusions. Everything produced here feeds directly into the visualisation and bias-analysis notebooks that follow.
+
+The primary dataset is `jobs_all_clean.csv`, the 1,542-offer unified file produced by the cleaning pipeline. Several auxiliary datasets are loaded alongside it to allow cross-source comparisons.
+
+## Imports and configuration
+
+```python
+import os
+from pathlib import Path
+
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+from IPython.display import display
+
+# Configure pandas and plots / Configurar pandas y gráficos
+pd.set_option("display.max_columns", None)
+pd.set_option("display.max_rows", 120)
+sns.set_theme(style="whitegrid", palette="Set2")
+
+# Define project paths / Definir rutas del proyecto
+PROJECT_ROOT = Path.cwd().parent if Path.cwd().name == "notebooks" else Path.cwd()
+DATA_CLEAN   = PROJECT_ROOT / "data" / "clean"
+```
+
+<Note>
+  The `ensure_location_columns()` helper reconstructs `location_clean`, `city_clean`, and `is_remote` in memory if the loaded CSV was produced by a partial run of the cleaning notebook. This makes the EDA resilient to incremental execution.
+</Note>
+
+## Datasets loaded
+
+| Variable | File | Role in EDA |
+|----------|------|-------------|
+| `jobs_all_clean` | `jobs_all_clean.csv` | **Main dataset** — all analyses run on this |
+| `jobs_clean` | `jobs_clean.csv` | Cross-check for original offer structure |
+| `tecno_jobs_clean` | `tecno_jobs_clean.csv` | Spanish market cross-check |
+| `job_skills_long` | `job_skills_long.csv` | Skill-frequency analysis |
+| `technology_rankings` | `technology_rankings.csv` | Stack Overflow technology overview |
+| `technology_rankings_used` | `technology_rankings_used.csv` | Technologies respondents use |
+| `technology_rankings_wanted` | `technology_rankings_wanted.csv` | Technologies respondents want |
+| `cleaning_validation_summary` | `cleaning_validation_summary.csv` | Validates cleaning quality before EDA begins |
+
+<Tip>
+  If any load fails, run `02_cleaning.ipynb` first to regenerate the clean CSV files. The EDA notebook does not re-clean data — it assumes the cleaning pipeline has already been executed.
+</Tip>
+
+## Analysis sections
+
+The notebook works through 20 numbered sections. The table below summarises the purpose of each:
+
+| Section | Topic | What is examined |
+|---------|-------|-----------------|
+| 1 | Objective | Research questions and dataset scope |
+| 2 | Imports and config | Libraries, pandas options, path setup |
+| 3 | Load clean datasets | All eight CSV files loaded and validated |
+| 4 | Auxiliary functions | Reusable helpers for summaries, nulls, frequency tables, and plots |
+| 5 | Structure review | Row counts, column lists, and data types for every dataset |
+| 6 | Main dataset overview | `jobs_all_clean` dimensions, columns, and first rows |
+| 7 | Null values | Per-column null count and percentage; horizontal bar chart |
+| 8 | Source coverage | Offer count and share by `source_dataset` |
+| 9 | Role analysis | Top `job_title` values; approximate role-family classification |
+| 10 | Company analysis | Most frequent companies; concentration check |
+| 11 | Location and modality | Top cities by `city_clean`; `work_modality` distribution |
+| 12 | Seniority and industry | `seniority_level` and `industry` distributions |
+| 13 | Salary analysis | Availability rate; descriptive stats; distribution by source and modality |
+| 14 | Job skills | Top 25 skills from `job_skills_long`; breakdown by source |
+| 15 | Stack Overflow tech | Used vs wanted technology rankings; category breakdown |
+| 16 | Skills ↔ Tech comparison | Name-normalised overlap between job-offer skills and SO technology rankings |
+| 17 | Posting dates | Date parsing; monthly posting trend by source |
+| 18 | Limitations | Structural caveats documented before conclusions |
+| 19 | Initial findings | Auto-generated summary of key metrics |
+| 20 | Post-EDA export | Enriched datasets saved to `data/eda/` for the visualisations notebook |
+
+## Key findings
+
+<CardGroup cols={2}>
+  <Card title="Dataset size" icon="table">
+    **1,542 offers, 17 columns** in the unified dataset. The working EDA copy gains additional derived columns (e.g. `post_date_parsed`, `post_month`, `work_modality`, `job_family`).
+  </Card>
+  <Card title="Largest source" icon="database">
+    `df_jobs` contributes **942 records**, making it the dominant source. Results must be interpreted with this weight in mind.
+  </Card>
+  <Card title="Most frequent role family" icon="user-tie">
+    **data_science_ai** is the most common job family derived from `job_title` classification. This reflects both the composition of the source datasets and genuine market demand.
+  </Card>
+  <Card title="Most frequent city" icon="location-dot">
+    **Madrid** ranks first among `city_clean` values, consistent with its position as Spain's primary tech-employment hub.
+  </Card>
+  <Card title="Dominant modality" icon="house-laptop">
+    **unknown** is the most frequent `work_modality` value — many offers simply do not specify remote, hybrid, or on-site. This is itself a finding relevant to the bias analysis.
+  </Card>
+  <Card title="Salary availability" icon="euro-sign">
+    `salary_clean` is available for **69.46 %** of offers. The remaining ~30 % are structurally absent and should be treated as missing at random until proven otherwise.
+  </Card>
+  <Card title="Top skill" icon="code">
+    **python** is the most frequently mentioned skill in `job_skills_long`, appearing more often than SQL, which ranks second.
+  </Card>
+  <Card title="Most wanted technology (SO)" icon="star">
+    **openAI GPT (chatbot models)** tops the `ai_model_tool` category in `technology_rankings_wanted`. This reflects professional appetite for generative-AI tools rather than market job demand.
+  </Card>
+</CardGroup>
+
+## Role-family classification
+
+The notebook derives a `job_family` column from `job_title` using keyword pattern matching. This is an approximation intended to group similar-sounding titles (e.g. "Data Scientist Sr.", "Senior Data Scientist", "Sr. Data Scientist") under a single label for aggregate analysis. It does not replace a formal job taxonomy.
+
+<Warning>
+  Role classification is based on simple text rules. Unusual or compound job titles may be classified into the `other` bucket. Always check raw `job_title` frequencies alongside `job_family` distributions to avoid over-aggregating.
+</Warning>
+
+## Salary analysis approach
+
+```python
+# Salary availability summary / Resumen de disponibilidad salarial
+salary_availability = pd.DataFrame({
+    "metric": [
+        "total_jobs",
+        "jobs_with_salary_clean",
+        "jobs_without_salary_clean",
+    ],
+    "count": [
+        len(jobs_eda),
+        jobs_eda["salary_clean"].notna().sum(),
+        jobs_eda["salary_clean"].isna().sum(),
+    ],
+})
+salary_availability["pct"] = (
+    salary_availability["count"] / len(jobs_eda) * 100
+).round(2)
+```
+
+Salary is analysed both as a raw distribution and broken down by `source_dataset` and `work_modality`. Because `salary_clean` was parsed from heterogeneous text formats during cleaning, all salary figures are treated as approximations for exploratory purposes only.
+
+## Skills vs Stack Overflow technology overlap
+
+A normalised name-matching comparison is run between the top 25 job-offer skills and the top 50 used/wanted technologies from Stack Overflow. The overlap count gives a rough signal of alignment between what employers list in offers and what professionals report using or wanting to learn. Due to naming inconsistencies across sources (e.g. `"powerbi"` vs `"Power BI"`), the overlap is conservative.
+
+## Post-EDA exports
+
+At the end of the notebook, enriched datasets are saved to `data/eda/` so that `04-visualizations.ipynb` consumes the validated, in-memory-enriched versions:
+
+| Export file | Contents |
+|-------------|----------|
+| `jobs_eda.csv` | `jobs_all_clean` plus all derived EDA columns |
+| `technology_rankings_eda.csv` | Full technology ranking |
+| `technology_rankings_used_eda.csv` | Used-technology ranking |
+| `technology_rankings_wanted_eda.csv` | Wanted-technology ranking |
+| `cleaning_validation_summary_eda.csv` | Validation summary with any EDA-level fixes applied |
+| `skill_technology_overlap_eda.csv` | Skill ↔ technology overlap comparison table |
+
+<Info>
+  The visualisations notebook (`04-visualizations.ipynb`) looks for these files in `data/eda/` first and falls back to `data/clean/` if they are absent. Running the EDA notebook before the visualisations notebook is therefore recommended but not strictly required.
+</Info>

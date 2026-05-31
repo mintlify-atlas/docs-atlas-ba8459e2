@@ -1,0 +1,240 @@
+---
+title: "Data Collection: Scraping & Adzuna API Setup"
+sidebarTitle: "Data Collection"
+description: "How the project gathered Spanish job market data — evaluating scraping portals, hitting anti-bot walls, and settling on the Adzuna public API."
+---
+
+Collecting fresh Spanish job-market data turned out to be the most technically challenging phase of the project. Three static datasets came pre-loaded from the bootcamp, but they either skewed international or lacked enough recent Spanish listings. To close that gap, the team (led by David, Data Analyst, May 2026) attempted automated scraping of the main Spanish job portals before landing on a reliable, fully ethical alternative: the public Adzuna API.
+
+## Pre-loaded datasets
+
+Before any collection work began, the project already had three sources to work with:
+
+<CardGroup cols={3}>
+  <Card title="tecnoempleo_spain_2026.csv" icon="database">
+    600 Spanish job offers with location data. Salary field present but **78 % null**.
+  </Card>
+  <Card title="data_science_job_posts_2025.csv" icon="globe">
+    944 international listings, of which **143 are in Spain**. Skills and salary columns have no nulls.
+  </Card>
+  <Card title="stackoverflow_2025_results.csv" icon="chart-bar">
+    Stack Overflow annual survey — used for demographic and technology-preference analysis.
+  </Card>
+</CardGroup>
+
+These datasets form the analytical backbone of the EDA, but the team needed more volume of recent Spanish offers with full descriptions to make the analysis meaningful.
+
+## Scraping portals — what was tried and why it failed
+
+The team systematically evaluated the two dominant Spanish job portals using several automation techniques. Every approach was blocked:
+
+| Portal | Method | Result |
+|--------|--------|--------|
+| InfoJobs | `requests` + BeautifulSoup | CAPTCHA |
+| InfoJobs | Playwright (real browser) | Distil Networks block |
+| Indeed | `requests` + BeautifulSoup | 403 Security Check |
+| Indeed | Playwright visible panel | Cloudflare Turnstile (not bypassed) |
+| Indeed | Playwright + clicks + pause | Cloudflare + context close |
+| InfoJobs API | App registration | Registration **closed** temporarily |
+
+<Warning>
+  Attempting to bypass CAPTCHA or Cloudflare Turnstile systems violates portal terms of service. All scraping experiments were stopped as soon as blocks were detected — no circumvention techniques were used.
+</Warning>
+
+The official InfoJobs API would have been the correct path, but new application registrations were closed at the time of the project. This left the team without a sanctioned route to either of the two largest Spanish portals.
+
+## Solution: the Adzuna public API
+
+[Adzuna](https://developer.adzuna.com) is an international job aggregator with a well-documented public API that aggregates listings from multiple Spanish sources.
+
+<CardGroup cols={2}>
+  <Card title="Free tier" icon="circle-check">
+    1,000 requests per month — more than sufficient for this project's 56-combination search matrix (7 roles × 8 cities).
+  </Card>
+  <Card title="Simple auth" icon="key">
+    `app_id` + `app_key` passed as URL query parameters. No OAuth flow required.
+  </Card>
+  <Card title="Rich payload" icon="list">
+    Each result returns: `title`, `company`, `location`, `description`, `salary_min`, `salary_max`, `contract_type`, `category`, and `redirect_url`.
+  </Card>
+  <Card title="Native pagination" icon="arrow-right">
+    Up to 5 pages of 50 results each per search query, accessed via a page number in the URL path.
+  </Card>
+</CardGroup>
+
+<Tip>
+  No CAPTCHAs or rate-limit errors were encountered during testing. The 1.1-second sleep between pages is a precautionary courtesy delay, not a hard requirement.
+</Tip>
+
+## Credential setup
+
+API keys are **never** written into the notebook code. They are stored in a `.env` file (git-ignored) and loaded at runtime with `python-dotenv`.
+
+<Steps>
+  <Step title="Copy the example file">
+    A `.env.example` file with placeholder values is included in the project root. Copy and rename it:
+    ```bash
+    cp .env.example .env
+    ```
+  </Step>
+  <Step title="Register on Adzuna Developer">
+    Create a free account at [developer.adzuna.com/signup](https://developer.adzuna.com/signup). Your `Application ID` and `Application Key` appear in the dashboard immediately after registration.
+  </Step>
+  <Step title="Fill in your credentials">
+    Open `.env` in any text editor and replace the placeholder values:
+    ```bash
+    ADZUNA_APP_ID=your_real_app_id
+    ADZUNA_APP_KEY=your_real_app_key
+    ```
+    The `.env` file is already listed in `.gitignore` — it will never be committed.
+  </Step>
+  <Step title="Install dependencies">
+    From the project root, install the required packages:
+    ```bash
+    pip install -r requirements.txt
+    ```
+    This installs `requests`, `pandas`, `python-dotenv`, and the rest of the project dependencies.
+  </Step>
+</Steps>
+
+## Notebook walkthrough
+
+<Steps>
+  <Step title="Imports and path setup">
+    The notebook loads credentials, sets the output path, and raises a descriptive `ValueError` immediately if either key is missing:
+
+    ```python
+    import os
+    import requests
+    import time
+    import pandas as pd
+    from dotenv import load_dotenv
+
+    load_dotenv()
+
+    APP_ID = os.getenv("ADZUNA_APP_ID")
+    APP_KEY = os.getenv("ADZUNA_APP_KEY")
+
+    if not APP_ID or not APP_KEY:
+        raise ValueError(
+            "Falta ADZUNA_APP_ID o ADZUNA_APP_KEY en el archivo .env. "
+            "Revisa .env.example para más información."
+        )
+
+    PROJECT_ROOT = os.path.abspath(os.path.join(os.getcwd(), ".."))
+    DEFAULT_OUTPUT = "scraping_jobs_raw.csv"
+    ```
+  </Step>
+  <Step title="Define the scrape_adzuna() function">
+    The core extraction function paginates through Adzuna results, accumulates offer dicts, builds a unified `salary` column, deduplicates by `enlace` (URL), and appends to the output CSV on disk:
+
+    ```python
+    def scrape_adzuna(keyword, location, output_file=DEFAULT_OUTPUT, max_pages=5):
+        base_url = "https://api.adzuna.com/v1/api/jobs/es/search"
+        all_offers = []
+
+        for page in range(1, max_pages + 1):
+            params = {
+                "app_id": APP_ID,
+                "app_key": APP_KEY,
+                "what": keyword,
+                "where": location,
+                "content-type": "application/json",
+                "results_per_page": 50,
+            }
+            resp = requests.get(f"{base_url}/{page}", params=params)
+
+            if resp.status_code != 200:
+                print(f"  [!] Error en página {page}: {resp.status_code}")
+                break
+
+            offers = resp.json().get("results", [])
+            if not offers:
+                print(f"  [i] No hay más resultados en página {page}. Finalizando.")
+                break
+
+            for job in offers:
+                all_offers.append({
+                    "titulo":      job.get("title"),
+                    "empresa":     job.get("company", {}).get("display_name"),
+                    "ubicacion":   job.get("location", {}).get("display_name"),
+                    "enlace":      job.get("redirect_url"),
+                    "metadatos":   f"{job.get('contract_type','')} | "
+                                   f"{job.get('category',{}).get('label','')}",
+                    "descripcion": job.get("description"),
+                    "salario_min": job.get("salary_min"),
+                    "salario_max": job.get("salary_max"),
+                    "salario_moneda": job.get("salary_currency", "EUR"),
+                })
+
+            time.sleep(1.1)  # courtesy delay / retraso de cortesía
+
+        # ... build salary column, deduplicate, save to CSV
+    ```
+  </Step>
+  <Step title="Quick test">
+    A single two-page search verifies that the credentials and network connection work before launching the full batch:
+
+    ```python
+    df_test = scrape_adzuna("data scientist", "Madrid", max_pages=2)
+    df_test[["titulo", "empresa", "descripcion"]].head()
+    ```
+  </Step>
+  <Step title="Bulk searches">
+    The full extraction iterates over 7 roles × 8 cities = 56 combinations. Each combination runs with `max_pages=1` to stay well within the 1,000-request monthly free tier:
+
+    ```python
+    roles = [
+        "data scientist", "data engineer", "data analyst",
+        "machine learning engineer", "business intelligence",
+        "big data", "analista de datos",
+    ]
+
+    ciudades = [
+        "Madrid", "Barcelona", "Valencia", "Bilbao",
+        "Sevilla", "Zaragoza", "Malaga", "remoto",
+    ]
+
+    for rol in roles:
+        for ciudad in ciudades:
+            scrape_adzuna(rol, ciudad, max_pages=1)
+    ```
+
+    All results accumulate in `data/raw/scraping_jobs_raw.csv`, deduplicated by URL on every write.
+  </Step>
+</Steps>
+
+## Adzuna API reference
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `app_id` | string | Application ID from the Adzuna developer dashboard |
+| `app_key` | string | Application Key from the Adzuna developer dashboard |
+| `what` | string | Search keywords (e.g. `"data engineer"`) |
+| `where` | string | Location string (e.g. `"Madrid"`, `"remoto"`) |
+| `results_per_page` | integer | Number of results per page (max 50) |
+| `content-type` | string | Set to `"application/json"` |
+
+The page number is appended to the base URL path: `https://api.adzuna.com/v1/api/jobs/es/search/{page}`.
+
+## Lessons learned
+
+<Accordion title="Anti-bot protection is now standard on major job portals">
+  Both InfoJobs and Indeed employ enterprise-grade bot-detection systems (Distil Networks and Cloudflare Turnstile respectively). These cannot be bypassed ethically or reliably in a professional context without explicit authorization from the portal owner.
+</Accordion>
+
+<Accordion title="Adzuna does not publish salary for every listing">
+  The `salary_min` and `salary_max` fields are null for a significant portion of offers — a pattern consistent with the 78 % null rate seen in `tecnoempleo_spain_2026.csv`. Salary analysis downstream must account for this structural absence.
+</Accordion>
+
+<Accordion title="Freshness bias from single-page extraction">
+  Using `max_pages=1` to conserve API quota means only the most recently posted offers per search are captured. Older listings that have not been refreshed may be systematically underrepresented.
+</Accordion>
+
+<Accordion title="Geographic coverage is uneven">
+  The eight cities in the bulk search cover Spain's main urban areas, but smaller provinces and rural areas are entirely absent. The scraped dataset should not be used to draw conclusions about the national job market outside major cities.
+</Accordion>
+
+<Note>
+  The scraping dataset (`scraping_jobs_raw.csv`) feeds directly into the cleaning pipeline in `02_cleaning.ipynb`, where it is normalised to the same column schema as the other sources and integrated into `jobs_all_clean.csv`.
+</Note>

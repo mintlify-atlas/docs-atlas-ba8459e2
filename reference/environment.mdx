@@ -1,0 +1,175 @@
+---
+title: "Environment Variables and Path Configuration"
+sidebarTitle: "Environment"
+description: "Reference for all .env variables, path constants, and notebook-level configuration options used throughout the EDA Roles de Datos project."
+---
+
+Every notebook in this project reads its configuration from two sources: a `.env` file for secrets (API credentials), and a set of `pathlib.Path` constants defined at the top of each notebook for filesystem navigation. Understanding these two layers makes it straightforward to adapt the project to a different machine, a shared server, or a different working directory.
+
+## Environment file (`.env`)
+
+The project uses [`python-dotenv`](https://pypi.org/project/python-dotenv/) to load secrets from a `.env` file in the project root. The repository ships with `.env.example` as a committed template — copy it to `.env` and fill in your real values before running notebook 01.
+
+```bash
+cp .env.example .env
+```
+
+<Note>
+  Notebooks 02, 03, 04, and 05 do **not** read any environment variables. They work entirely with pre-existing CSV files in `data/clean/` and `data/raw/`. Only notebook 01 (`01_data_collection.ipynb`) requires Adzuna credentials to be present in `.env`.
+</Note>
+
+### Variables
+
+<ParamField path="ADZUNA_APP_ID" type="string" required>
+  Your Adzuna application ID. Obtain this by registering a free developer account at [developer.adzuna.com](https://developer.adzuna.com). Used exclusively by notebook 01 to authenticate paginated API requests.
+</ParamField>
+
+<ParamField path="ADZUNA_APP_KEY" type="string" required>
+  Your Adzuna application key (API secret). Retrieved from the same developer dashboard as `ADZUNA_APP_ID`. Sent as a query parameter on every Adzuna API call.
+</ParamField>
+
+### `.env.example` template
+
+The committed example file shows the expected format:
+
+```bash
+# Adzuna API credentials
+# Rename this file to .env and fill with your real keys
+ADZUNA_APP_ID=d909c217
+ADZUNA_APP_KEY=986a17c866ebfa14a61cf578aebf0a30
+```
+
+<Warning>
+  The values shown in `.env.example` are **placeholder keys**. Never use them in production requests. Always replace them with the keys from your own Adzuna developer account.
+</Warning>
+
+### Loading variables in notebook 01
+
+Notebook 01 loads the `.env` file using the standard python-dotenv pattern:
+
+```python
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
+
+APP_ID  = os.getenv('ADZUNA_APP_ID')
+APP_KEY = os.getenv('ADZUNA_APP_KEY')
+```
+
+`load_dotenv()` reads the `.env` file from the current working directory (or any parent directory) and injects each key-value pair into `os.environ`. The variables are then available via `os.getenv()` for the remainder of the kernel session.
+
+<Tip>
+  If `load_dotenv()` returns `False`, the `.env` file was not found. Make sure you have copied `.env.example` to `.env` and that the file lives in the project root — not inside the `notebooks/` subdirectory.
+</Tip>
+
+---
+
+## Path constants
+
+All five notebooks define the same set of `pathlib.Path` constants in their first cell. This pattern resolves the project root regardless of whether the notebook is opened from within the `notebooks/` subdirectory or from the project root directly.
+
+```python
+from pathlib import Path
+
+PROJECT_ROOT = Path.cwd().parent if Path.cwd().name == "notebooks" else Path.cwd()
+DATA_RAW     = PROJECT_ROOT / "data" / "raw"
+DATA_CLEAN   = PROJECT_ROOT / "data" / "clean"
+```
+
+### How the root resolution works
+
+| Condition | `Path.cwd()` | `PROJECT_ROOT` resolves to |
+|---|---|---|
+| Notebook opened from `notebooks/` | `.../proyecto-eda-roles-datos/notebooks` | `.../proyecto-eda-roles-datos` |
+| Notebook opened from project root | `.../proyecto-eda-roles-datos` | `.../proyecto-eda-roles-datos` |
+
+This makes all downstream paths stable:
+
+| Constant | Resolved path |
+|---|---|
+| `PROJECT_ROOT` | `proyecto-eda-roles-datos/` |
+| `DATA_RAW` | `proyecto-eda-roles-datos/data/raw/` |
+| `DATA_CLEAN` | `proyecto-eda-roles-datos/data/clean/` |
+
+### Extended path constants
+
+Some notebooks define additional constants for EDA outputs and images:
+
+```python
+DATA_EDA = PROJECT_ROOT / "data" / "eda"
+IMAGES   = PROJECT_ROOT / "images"
+```
+
+<Note>
+  These directories are created automatically by the notebooks if they do not exist. No manual `mkdir` is required.
+</Note>
+
+---
+
+## Notebook-level configuration
+
+Beyond environment variables and paths, each notebook sets a few display and styling options in its setup cell. These are not stored in `.env` — they are hardcoded constants at the top of each notebook.
+
+### pandas display options
+
+```python
+import pandas as pd
+
+pd.set_option("display.max_columns", None)   # Show all columns
+pd.set_option("display.max_rows", 100)        # Cap row output in notebooks
+pd.set_option("display.float_format", "{:.2f}".format)  # 2 decimal places
+pd.set_option("display.width", 120)           # Wider console output
+```
+
+### seaborn theme
+
+```python
+import seaborn as sns
+
+sns.set_theme(style="whitegrid", palette="muted")
+```
+
+<Tip>
+  Notebook 04 overrides the seaborn palette locally per chart to match the project's colour scheme (blues and oranges). The global `set_theme` call in the setup cell only provides a baseline default.
+</Tip>
+
+### matplotlib defaults
+
+```python
+import matplotlib.pyplot as plt
+import matplotlib.ticker as mticker
+
+plt.rcParams["figure.figsize"] = (12, 6)
+plt.rcParams["figure.dpi"]     = 150
+plt.rcParams["font.family"]    = "sans-serif"
+```
+
+### Plotly renderer
+
+```python
+import plotly.io as pio
+
+pio.renderers.default = "jupyterlab"  # Interactive display in Jupyter Lab
+```
+
+For static PNG export (used in notebook 04), kaleido is called explicitly via `fig.write_image()` — no additional renderer configuration is needed.
+
+---
+
+## Security checklist
+
+<CardGroup cols={2}>
+  <Card title=".env is gitignored" icon="shield-check">
+    Confirm `.gitignore` includes `.env` before pushing to a public repository. The file is excluded by default, but verify after any `.gitignore` edits.
+  </Card>
+  <Card title="No hardcoded secrets" icon="lock">
+    API credentials must never appear in notebook cells or script files. Always load them via `os.getenv()` after calling `load_dotenv()`.
+  </Card>
+  <Card title="Use separate keys per environment" icon="key">
+    If you deploy this project on a shared server or CI pipeline, create a separate Adzuna API key for that environment and rotate keys regularly.
+  </Card>
+  <Card title="Rotate compromised keys immediately" icon="rotate">
+    If a key is accidentally committed, revoke it immediately in the [Adzuna developer dashboard](https://developer.adzuna.com) and generate a new one.
+  </Card>
+</CardGroup>

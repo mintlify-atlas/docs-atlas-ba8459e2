@@ -1,0 +1,152 @@
+---
+title: "Technology Rankings: Stack Overflow 2025 Developer Survey"
+sidebarTitle: Tech Rankings
+description: "Used vs. wanted technology rankings from the Stack Overflow 2025 survey across AI tools, languages, databases, cloud, and frameworks — with gap analysis."
+---
+
+Technology demand in the Spanish data job market can be understood from two complementary angles: what skills employers list in job postings, and what technologies the global developer community is actively using and aspiring to learn. This page covers the latter, derived from the **Stack Overflow Developer Survey 2025**.
+
+## Data Source
+
+The Stack Overflow Developer Survey 2025 gathered responses from approximately **90,000 developers worldwide**. It is one of the largest and most cited annual surveys of the global software development community. Within this project, the survey data was loaded as `df_stack` and processed to generate the `technology_rankings.csv` file.
+
+<Note>
+  Stack Overflow survey data reflects a **global developer community** and is not a direct proxy for Spanish job market demand. It functions as a reference signal for broad technology adoption trends — particularly useful for understanding which AI tools are gaining traction. See the [Limitations](/results/limitations) page for a discussion of Stack Overflow-specific biases.
+</Note>
+
+The dataset covers technologies organised into named categories. Each technology has two record types:
+
+- **`used`** — technologies the respondent currently uses in their work or personal projects.
+- **`wanted`** — technologies the respondent does not currently use but wants to work with in the coming year.
+
+This distinction enables a **gap analysis**: technologies with high `wanted` but lower `used` counts signal emerging or aspirational technologies. Technologies with high `used` but lower `wanted` counts may indicate established tools that are widely adopted but not exciting to practitioners.
+
+## Technology Categories
+
+The `technology_rankings.csv` dataset covers the following categories:
+
+<CardGroup cols={2}>
+  <Card title="ai_model_tool" icon="robot">
+    AI and LLM tools: GPT models, Claude, Gemini, reasoning models, and similar AI assistants used by developers.
+  </Card>
+  <Card title="language" icon="code">
+    Programming languages: Python, JavaScript, TypeScript, SQL, Rust, Go, and others.
+  </Card>
+  <Card title="database" icon="database">
+    Databases and data stores: PostgreSQL, MySQL, MongoDB, Redis, Snowflake, BigQuery, and more.
+  </Card>
+  <Card title="platform" icon="server">
+    Platforms and operating environments including cloud-hosted development platforms.
+  </Card>
+  <Card title="webframe" icon="globe">
+    Web frameworks and libraries: React, Django, FastAPI, Node.js, and similar tools.
+  </Card>
+  <Card title="cloud" icon="cloud">
+    Cloud providers and services: AWS, Azure, GCP, and associated managed services.
+  </Card>
+</CardGroup>
+
+## Top AI Model Tools (Used)
+
+The `ai_model_tool` category is particularly relevant to the data roles landscape. OpenAI's GPT models lead by a substantial margin among tools **currently used** by survey respondents.
+
+| Rank | Technology | Used Count |
+|------|-----------|-----------|
+| 1 | openAI GPT (chatbot models) | 13,424 |
+| 2 | Anthropic Claude Sonnet | 7,063 |
+| 3 | Gemini Flash (general purpose models) | 5,823 |
+| 4 | openAI Reasoning models | 5,716 |
+
+<Info>
+  The gap between rank 1 (openAI GPT at 13,424) and rank 2 (Claude Sonnet at 7,063) is substantial — GPT models have approximately twice the usage count of the next most-used AI tool. This likely reflects both early market entry and broad enterprise integration of the OpenAI API.
+</Info>
+
+## Used vs. Wanted Gap Analysis
+
+The gap between `used` and `wanted` counts reveals which technologies are gaining momentum versus which are plateauing. Block 4 of Notebook 04 (`04_tecnologias.png`) visualises this gap across all technology categories.
+
+**Interpreting the gap:**
+
+- **Positive gap (`wanted > used`)**: Emerging technology. Developers want to adopt it but haven't yet. Strong signal for future demand growth.
+- **Near-zero gap**: Stable technology. Adoption and aspiration are balanced. Mature, well-established tools often fall here.
+- **Negative gap (`used > wanted`)**: Established or declining technology. Widely used but fewer developers are aspiring to work with it going forward.
+
+<Tip>
+  For career planning and curriculum decisions, technologies with a **strongly positive gap** are worth prioritising — they represent where the community expects to move next, which often leads job market demand by 12–24 months.
+</Tip>
+
+## Skill and Technology Overlap
+
+The project also generates a `skill_technology_overlap_eda.csv` file that cross-references skills found in job offer postings with technologies catalogued in the Stack Overflow survey. This overlap dataset enables questions such as:
+
+- Which Stack Overflow technologies appear most frequently in Spanish job postings?
+- Are there high-demand Stack Overflow technologies that are under-represented in Spanish job descriptions?
+- Which job-posting skills have no clear equivalent in the Stack Overflow taxonomy?
+
+The overlap analysis bridges the gap between community-reported technology adoption (`df_stack`) and employer-stated hiring requirements (`df_jobs`, `df_tecno`, `df_scraping`).
+
+## Working with the Rankings Data
+
+The following code demonstrates how to load `technology_rankings.csv` and perform the used vs. wanted gap analysis programmatically:
+
+```python
+import pandas as pd
+
+df_rankings = pd.read_csv('data/clean/technology_rankings.csv')
+
+# Top used technologies
+used = df_rankings[df_rankings['type'] == 'used'].sort_values('count', ascending=False)
+print(used.head(10))
+
+# Top wanted technologies
+wanted = df_rankings[df_rankings['type'] == 'wanted'].sort_values('count', ascending=False)
+print(wanted.head(10))
+
+# Used vs Wanted gap
+gap = df_rankings.pivot_table(index='technology', columns='type', values='count', fill_value=0)
+gap['gap'] = gap['wanted'] - gap['used']
+print(gap.sort_values('gap', ascending=False).head(10))
+```
+
+<Accordion title="Column reference: technology_rankings.csv">
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `technology` | string | Name of the technology as reported in the Stack Overflow survey |
+| `category` | string | Technology category (e.g., `ai_model_tool`, `language`, `database`) |
+| `type` | string | Either `used` or `wanted` |
+| `count` | integer | Number of survey respondents who selected this technology for the given type |
+
+</Accordion>
+
+<Accordion title="Filtering by category">
+
+To focus the analysis on a specific category, filter on the `category` column before pivoting:
+
+```python
+import pandas as pd
+
+df_rankings = pd.read_csv('data/clean/technology_rankings.csv')
+
+# Restrict analysis to AI model tools only
+df_ai = df_rankings[df_rankings['category'] == 'ai_model_tool']
+
+gap = df_ai.pivot_table(
+    index='technology',
+    columns='type',
+    values='count',
+    fill_value=0
+)
+gap['gap'] = gap['wanted'] - gap['used']
+gap['gap_pct'] = (gap['gap'] / gap['used'].replace(0, 1)) * 100
+
+print(gap.sort_values('gap', ascending=False))
+```
+
+</Accordion>
+
+## Visualisation Reference
+
+Block 4 of Notebook 04 (`04_tecnologias.png`) renders the full used vs. wanted comparison as a paired bar chart. Technologies are grouped by category and sorted by `used` count within each group. The visual gap between the `used` and `wanted` bars is the primary analytical output of this block.
+
+This visualisation should be read alongside the job postings skill rankings (derived from `job_skills_long`) to form a complete picture of the technology landscape — one reflecting what employers ask for, the other reflecting what the developer community is doing and aspiring to.

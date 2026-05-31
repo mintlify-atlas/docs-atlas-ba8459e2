@@ -1,0 +1,215 @@
+---
+title: "Data Sources: Origins, Coverage, and Known Limitations"
+sidebarTitle: "Sources"
+description: "Reference for all four data sources in EDA Roles de Datos en España: acquisition method, geographic scope, known limitations, and null rate per source."
+---
+
+The project draws on four distinct data sources that serve complementary roles: two static job offer datasets (one international, one Spanish), one live-scraped Spanish source via API, and one global developer survey used exclusively for technology-trend analysis. Understanding their differences — particularly in geographic focus, collection period, and null coverage — is essential for interpreting the EDA results correctly.
+
+<Info>
+  Raw files for all four sources live in `data/raw/` which is **gitignored**. The cleaned outputs in `data/clean/` are committed. Refer to `01_data_collection.ipynb` for the full collection and scraping logic.
+</Info>
+
+---
+
+## Source 1 — data\_science\_job\_posts\_2025.csv (`df_jobs`)
+
+A publicly available dataset of international data-science job postings collected in 2025. This is the richest source in terms of structured metadata.
+
+<Card title="data_science_job_posts_2025.csv" icon="globe">
+  **Internal name:** `df_jobs` · **Rows after cleaning:** 944 total, **143 in Spain**
+</Card>
+
+### Key characteristics
+
+| Property | Value |
+|---|---|
+| Total offers | 944 |
+| Spain offers | 143 (~15%) |
+| Salary null rate | ~0% — salary present on all records |
+| Skills field | ✅ Structured list per offer |
+| Industry field | ✅ Available |
+| Seniority field | ✅ Available |
+| Geographic scope | International (USA-heavy) |
+| Collection period | 2025 |
+
+### What makes it valuable
+
+This source is the only one that provides structured `skills`, `industry`, `seniority_level`, and clean salary data without nulls. It also includes additional company-level metadata (`headquarter`, `ownership`, `company_size`, `revenue`) that is available in `jobs_clean.csv` but not carried into the unified `jobs_all_clean.csv`.
+
+### Limitations
+
+<Warning>
+  **Company names are anonymized.** The dataset uses identifiers like `company_003` instead of real employer names, which prevents any company-level analysis. This is by design in the source dataset.
+</Warning>
+
+- **Geographic bias:** The majority of offers are from the United States. Spain represents only ~15% of records, so Spain-specific conclusions drawn from `df_jobs` alone have limited statistical power.
+- **Skills vocabulary:** Skills are extracted by the dataset's original creator and may not match the vocabulary used in the Stack Overflow survey, leading to apparent zero overlap in cross-source skill/technology comparisons.
+- **Static snapshot:** The dataset represents a single collection window in 2025 and does not reflect real-time market changes.
+
+---
+
+## Source 2 — tecnoempleo\_spain\_2026.csv (`df_tecno`)
+
+A scrape of [TecnoEmpleo](https://www.tecnoempleo.com), the leading Spanish technology job board. This is the most geographically relevant source for the Spanish market.
+
+<Card title="tecnoempleo_spain_2026.csv" icon="map-pin">
+  **Internal name:** `df_tecno` · **Rows after cleaning:** 608 · **All Spain-based**
+</Card>
+
+### Key characteristics
+
+| Property | Value |
+|---|---|
+| Total offers | 608 |
+| Spain coverage | 100% — Spain-only source |
+| Salary null rate | ~78% — most offers omit salary |
+| Skills field | ✅ Available (structured) |
+| Industry field | ❌ Not present |
+| Seniority field | Partial |
+| Geographic scope | Spain |
+| Collection period | 2026 (scrape date) |
+
+### What makes it valuable
+
+The best single source for Spanish-market job distribution, city-level location data, and skill demand within Spain. The only source that captures companies publishing exclusively on Spanish platforms (which may not appear on international aggregators or Adzuna).
+
+### Limitations
+
+- **High salary null rate (~78%):** TecnoEmpleo listings frequently omit salary information. Any salary analysis using this source must account for the severe missingness — the available salaries may not be representative.
+- **No industry metadata:** Industry/sector classification is not available in the raw scrape, so industry-level analysis cannot include `df_tecno` records.
+- **Platform selection bias:** Only companies that post on TecnoEmpleo are represented. Large multinationals often prefer LinkedIn or direct careers pages.
+
+---
+
+## Source 3 — Adzuna API (`df_scraping`)
+
+Offers collected programmatically via the [Adzuna REST API](https://developer.adzuna.com), a job aggregator that indexes listings from multiple Spanish job boards in near real time.
+
+<Card title="Adzuna API" icon="code">
+  **Internal name:** `df_scraping` · **Rows integrated:** 625 · **Spain-filtered**
+</Card>
+
+### API endpoint
+
+```
+GET https://api.adzuna.com/v1/api/jobs/gb/search/{page}
+  ?app_id={ADZUNA_APP_ID}
+  &app_key={ADZUNA_APP_KEY}
+  &results_per_page=50
+  &what={query_term}
+  &where=Spain
+```
+
+Substitute `{page}` with the page number (starting at 1) and `{query_term}` with the role query (e.g. `data+scientist`, `data+engineer`). The endpoint returns up to 50 results per request.
+
+### Authentication
+
+The API uses two query parameters for authentication:
+
+<ParamField query="app_id" type="string" required>
+  Your Adzuna application ID. Obtained by registering a free developer account at [developer.adzuna.com](https://developer.adzuna.com).
+</ParamField>
+
+<ParamField query="app_key" type="string" required>
+  Your Adzuna API key, paired with `app_id`. Store these as environment variables — never commit them to the repository.
+
+  ```bash
+  export ADZUNA_APP_ID="your_app_id"
+  export ADZUNA_APP_KEY="your_app_key"
+  ```
+</ParamField>
+
+### Fields returned per offer
+
+| Field | Type | Notes |
+|---|---|---|
+| `title` | string | Job title as listed |
+| `company.display_name` | string | Company name (not anonymized) |
+| `location.display_name` | string | Location string |
+| `description` | string | Full offer text — skills must be extracted via NLP |
+| `salary_min` / `salary_max` | float | Salary when disclosed (often absent) |
+| `contract_type` | string | Full-time, part-time, etc. |
+| `redirect_url` | string | Link to original offer page |
+| `created` | string | ISO 8601 publication timestamp |
+
+### Rate limits and plan
+
+<Note>
+  The free tier of the Adzuna API allows **1,000 requests per month**. At 50 results per request, this yields up to 50,000 raw records per month before hitting the limit. The project's scraping run collected 625 integrated records across multiple query terms.
+</Note>
+
+### Limitations
+
+- **No structured skills field:** The API returns a free-text `description` field. Skill extraction from Adzuna records requires NLP or keyword matching — the `scraping_jobs_template.csv` schema reserves a `skills` column for this, but it is not populated by default in the collection notebook.
+- **Salary sparsity:** Salary disclosure is lower than `df_jobs` and similar to `df_tecno`. Most Spanish employers do not publish salaries on Adzuna.
+- **Aggregator overlap:** Adzuna aggregates listings from multiple boards, so some offers may duplicate records already in `df_tecno`.
+- **Free tier volume ceiling:** 1,000 requests/month limits collection depth for high-volume query terms.
+- **Snapshot in time:** Scraped data captures only the moment of collection; expired offers cannot be re-fetched.
+
+---
+
+## Source 4 — stackoverflow\_2025\_results.csv (`df_stack`)
+
+The [Stack Overflow 2025 Developer Survey](https://survey.stackoverflow.co/2025/), an annual survey of the global developer community covering technology preferences, employment, and salary.
+
+<Card title="stackoverflow_2025_results.csv" icon="chart-bar">
+  **Internal name:** `df_stack` · **~90,000 respondents globally** · **NOT a job offers source**
+</Card>
+
+### Key characteristics
+
+| Property | Value |
+|---|---|
+| Respondents | ~90,000 globally |
+| Geographic scope | Global (not Spain-specific) |
+| Used for | Technology demand benchmarking only |
+| Job offers | ❌ Not applicable |
+| Collection period | 2025 |
+
+### What makes it valuable
+
+The Stack Overflow survey is used exclusively to benchmark **technology demand** — which tools developers are currently using versus which they want to learn. This provides market context that cannot be extracted from job postings alone (job offers reflect employer demand; the survey reflects developer supply and aspiration).
+
+The survey data powers `technology_rankings.csv` and `technologies_clean_long_format.csv`. It is not merged with job offer data in `jobs_all_clean.csv`.
+
+### How it is used in the project
+
+```python
+# The survey data is analyzed separately — not joined to job offers
+df_used = pd.read_csv(DATA_CLEAN / "technology_rankings_used.csv")
+df_wanted = pd.read_csv(DATA_CLEAN / "technology_rankings_wanted.csv")
+
+# Compare used vs wanted for a category
+ai_tools = df_used[df_used['category'] == 'ai_model_tool'].nlargest(5, 'count')
+print(ai_tools[['technology', 'count']])
+```
+
+### Limitations
+
+<Warning>
+  **Global survey, not Spain-specific.** The ~90,000 respondents come from all over the world, with significant representation from the USA, India, Germany, and the UK. Technology preferences in the Spanish market may differ from global trends, so direct comparisons between survey rankings and Spanish job offer skill demand should be treated with caution.
+</Warning>
+
+- **Self-selection bias:** Respondents are Stack Overflow users — skewing toward English-speaking, web-development-oriented developers. Data science and ML practitioners may be under-represented relative to their share of the Spanish market.
+- **Technology naming mismatch:** Survey technology names (e.g. `"Python"` with capital P) differ from job offer skill strings (e.g. `"python"` lowercase), causing apparent zero overlap in the `skill_technology_overlap_eda.csv` cross-source comparison. Normalization is required for direct matching.
+- **Annual cadence:** The 2025 survey reflects a specific snapshot. Rapidly evolving areas (AI tooling in particular) may look different within months of publication.
+
+---
+
+## Source Comparison Summary
+
+| | `df_jobs` | `df_tecno` | `df_scraping` | `df_stack` |
+|---|---|---|---|---|
+| **Type** | Static dataset | Static scrape | Live API | Survey |
+| **Spain coverage** | Partial (15%) | 100% | 100% | Global |
+| **Offers in project** | 944 | 608 | 625 | N/A |
+| **Salary coverage** | ~100% | ~22% | Low | N/A |
+| **Structured skills** | ✅ | ✅ | ❌ | N/A |
+| **Industry** | ✅ | ❌ | ❌ | N/A |
+| **Company names** | Anonymized | Named | Named | N/A |
+| **Primary use** | Salary & skills analysis | Spain market distribution | Recent Spanish offers | Tech benchmarking |
+
+<Tip>
+  For salary analysis, filter to `source_dataset == 'df_jobs'` or use `salary_clean_outlier == False` to get the most reliable numeric figures. For Spain-specific market share and location analysis, include `df_tecno` and `df_scraping` records.
+</Tip>

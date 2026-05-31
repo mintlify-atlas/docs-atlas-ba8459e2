@@ -1,0 +1,235 @@
+---
+title: "Project Setup and Installation Guide"
+sidebarTitle: "Setup"
+description: "Step-by-step instructions to clone the repo, create a virtual environment, install dependencies, and run the EDA notebooks locally."
+---
+
+Getting the project running locally takes only a few minutes. You will need Python 3.10 or later, a terminal, and either Jupyter Lab or VS Code with the Jupyter extension installed. Plan for roughly 500 MB of free disk space to accommodate the cleaned CSV outputs and generated chart images — the raw data directory starts empty and is populated by notebook 01.
+
+## Prerequisites
+
+Before you begin, confirm your environment meets the following requirements:
+
+<CardGroup cols={3}>
+  <Card title="Python 3.10+" icon="python">
+    Any 3.10, 3.11, or 3.12 release works. Python 3.11 is recommended for broadest library compatibility.
+  </Card>
+  <Card title="Jupyter Environment" icon="notebook">
+    Jupyter Lab, classic Jupyter Notebook, or VS Code with the official Jupyter extension.
+  </Card>
+  <Card title="~500 MB Disk Space" icon="hard-drive">
+    Required for cleaned CSVs in `data/clean/`, EDA outputs in `data/eda/`, and chart PNGs in `images/`.
+  </Card>
+</CardGroup>
+
+<Note>
+  An **Adzuna API account** is only required if you want to run notebook 01 (live data collection). Notebooks 02 through 05 work entirely from CSV files already present in `data/clean/` and `data/raw/` — no API credentials needed.
+</Note>
+
+## Installation
+
+<Steps>
+  <Step title="Clone the repository">
+    Download the project source to your machine. Replace the URL with your fork if you have one.
+
+    ```bash
+    git clone https://github.com/Gema-Villanueva/proyecto-eda-roles-datos.git
+    cd proyecto-eda-roles-datos
+    ```
+  </Step>
+
+  <Step title="Create a virtual environment">
+    Isolate the project dependencies from your system Python. Choose the tool you prefer:
+
+    <Tabs>
+      <Tab title="venv (standard library)">
+        ```bash
+        # Create the environment
+        python -m venv .venv
+
+        # Activate — Linux / macOS
+        source .venv/bin/activate
+
+        # Activate — Windows (Command Prompt)
+        .venv\Scripts\activate
+
+        # Activate — Windows (PowerShell)
+        .venv\Scripts\Activate.ps1
+        ```
+
+        <Tip>
+          VS Code detects `.venv` automatically. Open the Command Palette → **Python: Select Interpreter** and choose the `.venv` entry if it isn't already selected.
+        </Tip>
+      </Tab>
+      <Tab title="conda">
+        ```bash
+        # Create a named environment with Python 3.11
+        conda create -n eda-roles python=3.11
+
+        # Activate the environment
+        conda activate eda-roles
+        ```
+
+        <Tip>
+          If you use `conda` but prefer `pip` for package management (recommended here because the project pins exact versions in `requirements.txt`), run `pip install -r requirements.txt` inside the activated conda environment.
+        </Tip>
+      </Tab>
+    </Tabs>
+  </Step>
+
+  <Step title="Install dependencies">
+    With your environment activated, install all pinned packages from `requirements.txt`:
+
+    ```bash
+    pip install -r requirements.txt
+    ```
+
+    This installs the full stack — data handling, visualization, statistics, notebook tooling, and document generation. See the [Environment reference](/reference/environment) for a package-by-package breakdown.
+
+    <Accordion title="Expected output (summary)">
+      You should see pip resolving and downloading packages across these groups:
+
+      | Group | Key packages |
+      |---|---|
+      | Data handling | `numpy 2.4.6`, `pandas 3.0.3` |
+      | Data collection | `requests 2.34.2`, `python-dotenv 1.2.2` |
+      | Notebooks | `ipykernel 7.2.0`, `ipython 9.14.0`, `nbformat 5.10.4` |
+      | Visualization | `matplotlib 3.10.9`, `seaborn 0.13.2`, `plotly 6.7.0`, `kaleido 1.3.0`, `squarify 0.4.4` |
+      | Statistics | `scipy 1.17.1`, `statsmodels 0.14.6` |
+      | Document generation | `python-docx 1.2.0` |
+    </Accordion>
+  </Step>
+
+  <Step title="Configure environment variables">
+    Copy the provided example file and fill in your Adzuna credentials. This step is only required for notebook 01.
+
+    ```bash
+    cp .env.example .env
+    ```
+
+    Open `.env` in your editor and replace the placeholder values:
+
+    ```bash
+    # .env
+    ADZUNA_APP_ID=your_real_app_id_here
+    ADZUNA_APP_KEY=your_real_app_key_here
+    ```
+
+    <Warning>
+      Never commit `.env` to version control. It is already listed in `.gitignore`, but double-check before pushing to a public fork.
+    </Warning>
+
+    If you are only running notebooks 02–05, you can leave `.env` with the example placeholders — those notebooks never read API credentials. See the [Environment reference](/reference/environment) for full details on every variable.
+  </Step>
+
+  <Step title="Verify the installation">
+    Launch Jupyter to confirm everything is wired up correctly:
+
+    ```bash
+    # Option A — Jupyter Lab (recommended)
+    jupyter lab
+
+    # Option B — Classic notebook interface
+    jupyter notebook
+    ```
+
+    Your browser should open automatically. If it does not, copy the `localhost` URL printed in the terminal output.
+
+    <Tip>
+      In VS Code, open any `.ipynb` file directly. VS Code will prompt you to select a kernel — choose the interpreter from the virtual environment you created in step 2.
+    </Tip>
+  </Step>
+
+  <Step title="Run notebooks in order">
+    Open the `notebooks/` folder and execute the notebooks sequentially. Each notebook depends on the outputs of the one before it.
+
+    <CardGroup cols={2}>
+      <Card title="01_data_collection.ipynb" icon="cloud-arrow-down">
+        Fetches job listings from the Adzuna API. **Requires credentials.** Skip if you are working from existing CSVs.
+      </Card>
+      <Card title="02_cleaning.ipynb" icon="broom">
+        Normalises, deduplicates, and unifies the three source datasets into cleaned CSVs in `data/clean/`.
+      </Card>
+      <Card title="03_eda.ipynb" icon="magnifying-glass-chart">
+        Performs structure analysis, null analysis, distribution analysis, and ranking generation.
+      </Card>
+      <Card title="04-visualizations.ipynb" icon="chart-bar">
+        Produces 8 visualization blocks using matplotlib, seaborn, and Plotly, exported as PNGs to `images/`.
+      </Card>
+      <Card title="05_bias_analysis.ipynb" icon="scale-balanced">
+        Identifies and quantifies representation, location, seniority, and salary-data biases.
+      </Card>
+    </CardGroup>
+
+    <Note>
+      **Skipping notebook 01:** If you do not have Adzuna credentials, notebooks 02–05 still run in full using the static datasets (`data_science_job_posts_2025.csv`, `tecnoempleo_spain_2026.csv`, `stackoverflow_2025_results.csv`) that are included in the repository. The `data/raw/` directory ships with a `.gitkeep` placeholder — raw outputs from notebook 01 are gitignored and must be generated or obtained separately.
+    </Note>
+  </Step>
+</Steps>
+
+## Project directory structure
+
+After setup your workspace should look like this:
+
+```
+proyecto-eda-roles-datos/
+├── .venv/                     # Virtual environment (gitignored)
+├── .env                       # Your real credentials (gitignored)
+├── .env.example               # Committed template
+├── notebooks/
+│   ├── 01_data_collection.ipynb
+│   ├── 02_cleaning.ipynb
+│   ├── 03_eda.ipynb
+│   ├── 04-visualizations.ipynb
+│   └── 05_bias_analysis.ipynb
+├── data/
+│   ├── raw/                   # Populated by notebook 01 (gitignored)
+│   ├── clean/                 # Populated by notebook 02
+│   └── eda/                   # Populated by notebook 03
+├── images/                    # Populated by notebook 04
+├── scripts/
+│   └── build_notebook_docx_guide.py
+├── docs/
+│   └── guia_presentacion_notebooks_cleaning_eda.docx
+└── requirements.txt
+```
+
+## Troubleshooting
+
+<Accordion title="pip install fails with dependency conflicts">
+  Make sure you are running `pip install` inside your activated virtual environment (your prompt should show `.venv` or `eda-roles`). If conflicts persist, try upgrading pip first:
+
+  ```bash
+  pip install --upgrade pip
+  pip install -r requirements.txt
+  ```
+</Accordion>
+
+<Accordion title="Jupyter does not see the virtual environment kernel">
+  Register the environment as a Jupyter kernel manually:
+
+  ```bash
+  python -m ipykernel install --user --name=eda-roles --display-name "EDA Roles (Python 3.11)"
+  ```
+
+  Then restart Jupyter and select **EDA Roles (Python 3.11)** from the kernel picker.
+</Accordion>
+
+<Accordion title="Plotly charts do not display in Jupyter Lab">
+  Plotly requires the `jupyterlab` renderer for interactive output. If charts appear blank, add this cell at the top of the notebook:
+
+  ```python
+  import plotly.io as pio
+  pio.renderers.default = "jupyterlab"
+  ```
+</Accordion>
+
+<Accordion title="kaleido fails to export static PNGs">
+  `kaleido` is the Plotly static image engine. If PNG export fails, confirm kaleido installed correctly:
+
+  ```bash
+  pip show kaleido
+  ```
+
+  On some Linux systems you may also need to install `libgobject` or run inside a headed display (use `xvfb-run` on headless servers).
+</Accordion>

@@ -1,0 +1,94 @@
+{
+  "projectType": "ai-ml",
+  "projectName": "EDA Roles de Datos en España",
+  "projectDescription": "Un análisis exploratorio de datos completo sobre el mercado laboral de roles de datos en España, que cubre recogida de datos, limpieza, EDA, visualizaciones y análisis de sesgos.",
+  "theme": "luma",
+  "primaryColor": "#ef7025",
+  "lightColor": "#eec9bc",
+  "darkColor": "#4fa1ab",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Guía del Proyecto",
+        "groups": [
+          {
+            "group": "Introducción",
+            "pages": [
+              "introduction",
+              "quickstart"
+            ]
+          },
+          {
+            "group": "Notebooks",
+            "pages": [
+              "notebooks/data-collection",
+              "notebooks/cleaning",
+              "notebooks/eda",
+              "notebooks/visualizations",
+              "notebooks/bias-analysis"
+            ]
+          },
+          {
+            "group": "Datos y Datasets",
+            "pages": [
+              "data/datasets",
+              "data/schema",
+              "data/sources"
+            ]
+          },
+          {
+            "group": "Análisis y Resultados",
+            "pages": [
+              "results/key-findings",
+              "results/technology-rankings",
+              "results/salary-analysis",
+              "results/limitations"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Referencia Técnica",
+        "groups": [
+          {
+            "group": "Configuración",
+            "pages": [
+              "reference/setup",
+              "reference/environment"
+            ]
+          },
+          {
+            "group": "Scripts y Utilidades",
+            "pages": [
+              "reference/scripts",
+              "reference/data-pipeline"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Recogida de datos via API de Adzuna con paginación automática",
+    "Limpieza y normalización de múltiples fuentes heterogéneas (TecnoEmpleo, Stack Overflow, scraping)",
+    "Unificación de datasets con esquema de columnas comunes en inglés y snake_case",
+    "Análisis exploratorio de roles, empresas, ubicaciones, salarios y modalidades de trabajo",
+    "Rankings de tecnologías usadas vs. deseadas (Stack Overflow 2025)",
+    "Análisis de sesgos de representación, localización, seniority y disponibilidad salarial",
+    "Visualizaciones con matplotlib, seaborn y plotly (incluyendo treemaps y heatmaps)",
+    "Script de generación de documentación en DOCX con python-docx"
+  ],
+  "publicApiSurface": [
+    "notebooks/01_data_collection.ipynb — Recogida de datos via Adzuna API",
+    "notebooks/02_cleaning.ipynb — Limpieza y preparación de datasets",
+    "notebooks/03_eda.ipynb — Análisis exploratorio de datos",
+    "notebooks/04-visualizations.ipynb — Visualizaciones del mercado laboral",
+    "notebooks/05_bias_analysis.ipynb — Análisis de sesgos",
+    "scripts/build_notebook_docx_guide.py — Generación del documento de presentación",
+    "data/clean/jobs_all_clean.csv — Dataset unificado principal",
+    "data/clean/technology_rankings.csv — Rankings de tecnologías de Stack Overflow",
+    "data/clean/technologies_clean_long_format.csv — Tecnologías en formato largo",
+    "data/eda/jobs_eda.csv — Dataset EDA de ofertas",
+    "ADZUNA_APP_ID / ADZUNA_APP_KEY — Variables de entorno para la API"
+  ]
+}

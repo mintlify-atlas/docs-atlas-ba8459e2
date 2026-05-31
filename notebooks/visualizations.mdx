@@ -1,0 +1,207 @@
+---
+title: "Visualizations: Spanish Tech Job Market Dashboard"
+sidebarTitle: "Visualizations"
+description: "Eight analysis blocks producing 25+ charts for DataTalent Solutions S.L. — from vacancy distribution and salary analysis to interactive Plotly dashboards."
+---
+
+The visualisations notebook (`04-visualizations.ipynb`) is the deliverable-facing layer of the project. It was produced for the client **DataTalent Solutions S.L.** and translates the cleaned, EDA-enriched datasets into publication-quality charts, statistical tests, and interactive dashboards. The notebook is version 2.0 and is designed to consume the post-EDA data from `data/eda/`, with an automatic fallback that generates a realistic simulated dataset if no real data is available.
+
+## Libraries
+
+```python
+import os, warnings
+from pathlib import Path
+
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import matplotlib.patches as mpatches
+import matplotlib.gridspec as gridspec
+from matplotlib.colors import LinearSegmentedColormap
+import seaborn as sns
+import plotly.express as px
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
+from scipy import stats
+from scipy.stats import kruskal, mannwhitneyu
+
+try:
+    import squarify           # treemap charts — optional
+    HAS_SQUARIFY = True
+except ImportError:
+    HAS_SQUARIFY = False
+
+try:
+    import statsmodels.api as sm   # OLS regression + Q-Q plots — optional
+    HAS_STATSMODELS = True
+except ImportError:
+    HAS_STATSMODELS = False
+```
+
+<Note>
+  `squarify` and `statsmodels` are optional. If `squarify` is not installed, treemap charts fall back to horizontal bar charts. If `statsmodels` is absent, OLS trendlines in Plotly scatter plots are disabled and `scipy` is used for Q-Q plots instead.
+</Note>
+
+## Data loading and fallback behaviour
+
+The notebook uses a priority-resolution strategy for loading data:
+
+<Steps>
+  <Step title="Look for post-EDA data">
+    Checks `data/eda/jobs_eda.csv` (produced by `03_eda.ipynb`). If found, uses the validated, in-memory-enriched version of the dataset.
+  </Step>
+  <Step title="Fall back to clean data">
+    If `data/eda/` does not exist or the file is missing, tries `data/clean/jobs_all_clean.csv` instead and prints a warning recommending that `03_eda.ipynb` be run first.
+  </Step>
+  <Step title="Generate a simulated dataset">
+    If neither location has data, `simular_dataset(n=600, seed=42)` generates a **600-record synthetic dataset** with realistic distributions of roles, cities, modalities, seniority levels, sectors, salary ranges, and binary skill columns. This allows the notebook to run end-to-end for development and demo purposes without any real data.
+
+    ```python
+    def simular_dataset(n=600, seed=42):
+        np.random.seed(seed)
+        roles    = ['Data Analyst', 'Data Scientist', 'Data Engineer',
+                    'BI Analyst', 'ML Engineer']
+        ciudades = ['Madrid', 'Barcelona', 'Remoto', 'Valencia',
+                    'Sevilla', 'Bilbao', 'Málaga']
+        modos    = ['Presencial', 'Híbrido', 'Remoto']
+        # ... salary ranges vary by seniority (Junior 18-32k, Mid 30-52k, Senior 48-85k)
+        return df
+    ```
+  </Step>
+</Steps>
+
+<Warning>
+  When `DATOS_REALES = False`, all charts display the simulated data. Figures and statistics in the exported PNG files will not reflect the real job market. Always check the console output for the `DATOS_REALES` flag before interpreting exported images.
+</Warning>
+
+## Analysis blocks
+
+| Block | Title | Content | Output image |
+|-------|-------|---------|--------------|
+| **0** | Configuration & Data Quality | Corporate palette setup, null heatmap, data-type distribution | `00_calidad_datos.png` |
+| **1** | Vacancy Distribution & Volume | Offers by city (bar), work modality (donut), seniority (bar); treemap of roles per city | `01_distribucion_volumen.png`, `01b_treemap_roles_ciudad.png` |
+| **2** | Salary & Compensation Analysis | Boxplot by seniority (Kruskal-Wallis test), violin by modality, salary by city (± σ), salary histogram with normal curve | `02_analisis_salarial.png`, `02b_salario_rol.png` |
+| **3** | Heatmaps & Correlations | Skill co-occurrence heatmap, skill×seniority heatmap, numerical correlation matrix | `03_heatmaps_correlaciones.png` |
+| **4** | Tech Stack & Used vs Wanted Gap | Lollipop Used vs Wanted gap chart, stacked bar by technology category, dot plot of most demanded skills | `04_tecnologias.png` |
+| **5** | Advanced Statistical Analysis | Q-Q plots, OLS regression (experience → salary), Mann-Whitney U test (remote vs on-site salary), percentile scatter by role | `05_estadistica_avanzada.png` |
+| **6** | Interactive Visualisations (Plotly) | Box chart: salary × seniority × role; scatter: experience vs salary with OLS trendline; sunburst: city → modality → role; interactive heatmap: sector × city salary | *(rendered in notebook)* |
+| **7** | Executive Summary & Export | 9-KPI panel card grid; file inventory | `07_panel_kpis.png` |
+
+## Block details
+
+<Accordion title="Block 0 — Configuration and data quality">
+  Establishes the corporate colour palette (`PALETA`) used consistently across all charts:
+
+  | Key | Hex | Usage |
+  |-----|-----|-------|
+  | `primary` | `#1A365D` | Main bars, titles, annotations |
+  | `secondary` | `#2B6CB0` | Secondary bars, pie slices |
+  | `accent` | `#4299E1` | Highlights, IQR markers |
+  | `warm` | `#ED8936` | Salary histograms, error bars |
+  | `success` | `#48BB78` | Junior category, positive indicators |
+  | `muted` | `#A0AEC0` | Subdued labels |
+
+  The quality dashboard shows a null-value heatmap and a pie chart of column data types. Output: `00_calidad_datos.png`.
+</Accordion>
+
+<Accordion title="Block 1 — Vacancy distribution and volume">
+  Three charts in a single figure:
+
+  1. **Top 8 cities** — horizontal bar chart of offer count per `city_clean`.
+  2. **Work modality** — donut chart showing percentage split of `remote_modality` (Presencial / Híbrido / Remoto).
+  3. **Seniority** — annotated bar chart with count and percentage per level (Junior / Mid / Senior).
+
+  A fourth chart — the treemap of roles per top-4 city — is produced separately as `01b_treemap_roles_ciudad.png`. If `squarify` is not installed, this falls back to a horizontal bar chart.
+</Accordion>
+
+<Accordion title="Block 2 — Salary and compensation analysis">
+  All salary charts exclude statistical outliers (flagged in `salary_clean_outlier`). The four sub-charts are:
+
+  - **Boxplot by seniority** — includes a Kruskal-Wallis p-value annotation to show whether salary differences between Junior/Mid/Senior are statistically significant.
+  - **Violin by modality** — shows the full salary distribution shape for each work modality.
+  - **Mean salary by city (±σ)** — horizontal bar chart with standard-deviation error bars; only cities with ≥ 5 salary observations are included.
+  - **Salary histogram** — overlays a normal-distribution curve, median line, and mean line for visual skewness assessment.
+
+  A separate chart (`02b_salario_rol.png`) adds a strip-plot overlay on top of boxplots grouped by `job_title`.
+</Accordion>
+
+<Accordion title="Block 3 — Heatmaps and correlations">
+  Skill co-occurrence and correlation charts help identify which technical skills tend to appear together in job offers and which skills correlate with higher salary levels. Requires binary skill columns (present in simulated data; derived from `job_skills_long` for real data).
+</Accordion>
+
+<Accordion title="Block 4 — Tech stack and Used vs Wanted gap">
+  Loads `technology_rankings_used` and `technology_rankings_wanted` (from `data/eda/` or `data/clean/`). The lollipop *gap* chart shows technologies where the "wanted" percentage exceeds the "used" percentage — a positive gap indicates growing professional demand that has not yet been fully adopted. A positive gap for AWS and Docker suggests emerging cloud and containerisation demand.
+</Accordion>
+
+<Accordion title="Block 5 — Advanced statistical analysis">
+  Includes four statistical charts (graphs 18–21):
+
+  - **Q-Q plots** — assess salary normality per seniority group.
+  - **OLS regression** — `experience_years` as predictor of `salary_clean`; rendered with `statsmodels` if available, otherwise disabled.
+  - **Mann-Whitney U test** — compares remote vs on-site salary distributions without assuming normality.
+  - **Percentile scatter by role** — shows P10, P25, median, P75, P90 salary ranges per `job_title` for a compact inter-role salary comparison.
+</Accordion>
+
+<Accordion title="Block 6 — Interactive Plotly visualisations">
+  Four fully interactive charts rendered directly in the notebook (not exported as PNG):
+
+  - **Chart 22** — `px.box`: salary distribution by seniority, coloured by role. Supports zoom and hover.
+  - **Chart 23** — `px.scatter`: experience vs salary, coloured by seniority, with OLS trendline (requires `statsmodels`). Hover shows job title and city.
+  - **Chart 24** — `px.sunburst`: hierarchical breakdown city → modality → role for the top 6 cities.
+  - **Chart 25** — `go.Heatmap`: median salary by sector and city, with in-cell text labels.
+</Accordion>
+
+<Accordion title="Block 7 — Executive summary and export">
+  Generates a 3×3 KPI panel card grid (`07_panel_kpis.png`) on a dark background with nine business-critical metrics:
+
+  | KPI | Description |
+  |-----|-------------|
+  | Total Ofertas | Total offer count |
+  | Salario Mediano | Median salary (outliers excluded) |
+  | Salario Medio | Mean salary (outliers excluded) |
+  | Top Ciudad | City with most offers |
+  | Modalidad + frecuente | Most common work modality |
+  | % Remoto/Híbrido | Percentage of remote or hybrid offers |
+  | Rol más demandado | Most frequent job title |
+  | P10 Salarial | 10th percentile salary |
+  | P90 Salarial | 90th percentile salary |
+
+  At the end of the block, a file inventory lists every PNG in `images/` with its size in KB.
+</Accordion>
+
+## Exported chart files
+
+All PNG files are saved to `images/` at 200 DPI:
+
+| File | Contents |
+|------|---------|
+| `00_calidad_datos.png` | Null heatmap and data-type distribution |
+| `01_distribucion_volumen.png` | City bar chart, modality donut, seniority bars |
+| `01b_treemap_roles_ciudad.png` | Treemap (or fallback bar chart) of roles per city |
+| `02_analisis_salarial.png` | Salary boxplot, violin, city bars, histogram |
+| `02b_salario_rol.png` | Salary boxplot + strip by job title |
+| `03_heatmaps_correlaciones.png` | Skill co-occurrence and correlation heatmaps |
+| `04_tecnologias.png` | Used vs Wanted gap lollipop and technology stacks |
+| `05_estadistica_avanzada.png` | Q-Q plots, OLS regression, Mann-Whitney, percentiles |
+| `07_panel_kpis.png` | Executive KPI panel (dark background) |
+
+## Analytical conclusions
+
+<CardGroup cols={2}>
+  <Card title="Madrid & Barcelona dominate" icon="city">
+    These two cities account for the majority of tech offers, with Madrid in first place across all sources.
+  </Card>
+  <Card title="Hybrid is the new standard" icon="house-laptop">
+    Hybrid modality is the most common across the dataset, surpassing both fully remote and on-site.
+  </Card>
+  <Card title="Python + SQL lead skills" icon="code">
+    Python and SQL have the highest penetration in job offers. Cloud skills (AWS, Docker) show a positive Used→Wanted gap, signalling rising demand.
+  </Card>
+  <Card title="Salary differences are significant" icon="chart-line">
+    Kruskal-Wallis tests confirm statistically significant salary differences between seniority levels. Remote roles trend slightly higher in median salary.
+  </Card>
+</CardGroup>
+
+<Info>
+  All analysis was produced for **DataTalent Solutions S.L.** using data from `02_cleaning.ipynb`. The notebook is self-contained and reproducible: run the cells in order after placing the clean CSVs in `data/clean/` or the post-EDA exports in `data/eda/`.
+</Info>

@@ -1,0 +1,289 @@
+---
+title: "Column Schema Reference for the Three Core Datasets"
+sidebarTitle: "Schema"
+description: "Column-by-column schema for jobs_all_clean.csv, technology_rankings.csv, and technologies_clean_long_format.csv — types, examples, and null coverage notes."
+---
+
+This page documents the column schemas for the three most frequently queried datasets in the project. For a broader inventory of all available files, see [Datasets](/data/datasets). For details on how each source was collected, see [Data Sources](/data/sources).
+
+---
+
+## `jobs_all_clean.csv` — Main Unified Dataset
+
+The primary analysis table. Combines all three job-offer sources into 1,542 rows and 17 columns. The first 11 columns are present in all individual source files; the last 6 are derived during cleaning in `02_cleaning.ipynb`.
+
+### Loading the dataset
+
+```python
+import pandas as pd
+from pathlib import Path
+
+DATA_CLEAN = Path("data/clean")
+df = pd.read_csv(DATA_CLEAN / "jobs_all_clean.csv")
+
+print(df.shape)          # (1542, 17)
+print(df.dtypes)
+print(df.isnull().sum())
+```
+
+### Parsing the `skills` column
+
+The `skills` column is stored as a **Python list literal string**, not a JSON array. Use `ast.literal_eval` to convert it to a proper Python list before analysis:
+
+```python
+import ast
+
+df['skills_list'] = df['skills'].apply(
+    lambda x: ast.literal_eval(x) if pd.notna(x) and x.strip() != '' else []
+)
+
+# Explode into one skill per row for frequency analysis
+skills_exploded = df.explode('skills_list')
+print(skills_exploded['skills_list'].value_counts().head(10))
+```
+
+<Warning>
+  Some rows have `skills = "[]"` (an empty list string) or `skills = NaN`. The lambda above handles both cases safely. Do not use `json.loads()` — the list uses single quotes, which is not valid JSON.
+</Warning>
+
+### Column reference
+
+<ResponseField name="job_id" type="string" required>
+  Unique offer identifier assigned during cleaning. Format: `job_00001` through `job_01542`.
+
+  **Example:** `job_00001`
+
+  **Nulls:** None — every row has a unique `job_id`.
+</ResponseField>
+
+<ResponseField name="job_title" type="string" required>
+  Normalized job title, lowercased and stripped of extra whitespace. Common values include `data scientist`, `data engineer`, `data analyst`, `machine learning engineer`, `business intelligence analyst`.
+
+  **Example:** `data scientist`
+
+  **Nulls:** Very low — title is required in all source datasets.
+</ResponseField>
+
+<ResponseField name="company" type="string">
+  Company name. May be anonymized as `company_NNN` for records originating from `df_jobs` (the international dataset uses anonymized employer names for privacy).
+
+  **Example:** `company_003` (anonymized) · `Telefónica` (named)
+
+  **Nulls:** Some scraping records may have empty company fields.
+</ResponseField>
+
+<ResponseField name="location" type="string">
+  Raw location string exactly as it appeared in the source. May contain multiple cities separated by ` . `, country names, or hybrid/remote annotations. Not suitable for geographic filtering — use `city_clean` or `is_remote` instead.
+
+  **Example:** `"Grapevine, TX . Hybrid"` · `"Madrid"` · `"España"`
+
+  **Nulls:** Low for df\_jobs and df\_tecno; possible in scraping records.
+</ResponseField>
+
+<ResponseField name="salary" type="string">
+  Raw salary string as scraped, preserving the original format including currency symbols, ranges, and period descriptors. Not suitable for numeric analysis — use `salary_clean` instead.
+
+  **Example:** `"€100,472 - €200,938"` · `"€118,733"` · `"€30.000 - €40.000 al año"`
+
+  **Nulls:** High for df\_tecno (~78% null rate). Null for most scraping records.
+</ResponseField>
+
+<ResponseField name="job_type" type="string">
+  Contract type or employment classification. Values vary by source (e.g. `Full-time`, `Jornada completa`, `Contrato indefinido`). Not standardized across sources.
+
+  **Example:** `Full-time`
+
+  **Nulls:** Frequent — many sources do not provide contract type.
+</ResponseField>
+
+<ResponseField name="post_date" type="string">
+  Posting date as a raw string from the source. Format varies significantly across sources: LinkedIn-style relative dates (`"17 days ago"`), absolute dates, or scraping timestamps.
+
+  **Example:** `"17 days ago"` · `"a month ago"` · `"2025-01-15"`
+
+  **Nulls:** Some records have no date information.
+</ResponseField>
+
+<ResponseField name="link" type="string">
+  URL to the original job offer page. May be empty or a redirect URL depending on the source. Adzuna records use `redirect_url`.
+
+  **Example:** `"https://www.adzuna.es/jobs/details/..."`
+
+  **Nulls:** Common — many df\_jobs and df\_tecno records have no link preserved.
+</ResponseField>
+
+<ResponseField name="skills" type="string">
+  Skills associated with the offer, stored as a Python list literal string. Each skill is a lowercased technology or competency keyword. Must be parsed with `ast.literal_eval` before use. See the parsing note above.
+
+  **Example:** `"['python', 'sql', 'machine learning', 'spark']"`
+
+  **Nulls:** Some offers have no skills listed (`NaN`) or an empty list (`"[]"`). Scraping records from Adzuna do not include structured skill extraction.
+</ResponseField>
+
+<ResponseField name="industry" type="string">
+  Industry sector of the hiring company. Present mainly in df\_jobs records. Values include: `Technology`, `Finance`, `Healthcare`, `Retail`, `Manufacturing`, `Education`, `Energy`.
+
+  **Example:** `Technology`
+
+  **Nulls:** High for df\_tecno and scraping records — industry is not scraped from those sources.
+</ResponseField>
+
+<ResponseField name="seniority_level" type="string">
+  Experience level required. Standardized during cleaning to: `junior`, `mid`, `senior`, `lead`. Original source values are normalized to this vocabulary.
+
+  **Example:** `senior`
+
+  **Nulls:** High overall — seniority is frequently absent in Spanish job postings from TecnoEmpleo.
+</ResponseField>
+
+<ResponseField name="source_dataset" type="string" required>
+  Identifies which raw source contributed this row. Used for source-level segmentation throughout the analysis.
+
+  | Value | Source |
+  |---|---|
+  | `df_jobs` | `data_science_job_posts_2025.csv` |
+  | `df_tecno` | `tecnoempleo_spain_2026.csv` |
+  | `scraping` | Adzuna API results |
+
+  **Nulls:** None.
+</ResponseField>
+
+<ResponseField name="salary_clean" type="float">
+  Numeric salary in EUR, computed as the midpoint of salary ranges. Outliers are flagged separately in `salary_clean_outlier`. Non-parseable salary strings are set to `NaN`.
+
+  **Example:** `150705.0` (midpoint of €100,472 – €200,938) · `118733.0`
+
+  **Nulls:** High — inherits nulls from `salary`. Coverage is best for df\_jobs records.
+</ResponseField>
+
+<ResponseField name="location_clean" type="string">
+  Lightly cleaned version of `location`: trimmed whitespace and normalized encoding. Still a free-text string. For structured geographic analysis, use `city_clean`.
+
+  **Example:** `"Grapevine, TX . Hybrid"`
+
+  **Nulls:** Mirrors nulls in `location`.
+</ResponseField>
+
+<ResponseField name="city_clean" type="string">
+  City name extracted from `location_clean` using pattern matching. Best-effort extraction — complex multi-city strings yield the first recognizable city.
+
+  **Example:** `Grapevine` · `Madrid` · `Barcelona`
+
+  **Nulls:** Present where city extraction failed or location was missing.
+</ResponseField>
+
+<ResponseField name="is_remote" type="boolean" required>
+  `True` if the offer is classified as remote (full or partial), `False` otherwise. Derived from keywords in `location` and `job_type` fields during cleaning.
+
+  **Example:** `False` · `True`
+
+  **Nulls:** None — defaults to `False` when evidence is absent.
+</ResponseField>
+
+<ResponseField name="salary_clean_outlier" type="boolean" required>
+  `True` if `salary_clean` was flagged as a statistical outlier using IQR-based detection during cleaning. Outlier records are retained in the dataset but this flag allows easy exclusion for salary distribution analysis.
+
+  **Example:** `False`
+
+  **Nulls:** None — `False` when `salary_clean` is also null.
+</ResponseField>
+
+---
+
+## `technology_rankings.csv` — Stack Overflow Technology Counts
+
+Aggregated technology popularity derived from the Stack Overflow 2025 Developer Survey. Each row counts how many survey respondents reported using or wanting to use a particular technology in a given category.
+
+```python
+df_rankings = pd.read_csv(DATA_CLEAN / "technology_rankings.csv")
+print(df_rankings.shape)  # (372, 4)
+
+# Top 10 most-used languages
+langs_used = df_rankings[
+    (df_rankings['category'] == 'language') &
+    (df_rankings['type'] == 'used')
+].nlargest(10, 'count')
+print(langs_used[['technology', 'count']])
+```
+
+<ResponseField name="category" type="string" required>
+  Technology category. One of: `language`, `database`, `platform`, `web_framework`, `development_environment`, `ai_model_tool`.
+
+  **Example:** `ai_model_tool`
+</ResponseField>
+
+<ResponseField name="type" type="string" required>
+  Survey response type. Either `used` (have worked with) or `wanted` (want to work with).
+
+  **Example:** `used`
+</ResponseField>
+
+<ResponseField name="technology" type="string" required>
+  Technology name exactly as it appears in the Stack Overflow survey. Capitalization and spacing are preserved from the source.
+
+  **Example:** `openAI GPT (chatbot models)` · `Python` · `PostgreSQL`
+</ResponseField>
+
+<ResponseField name="count" type="integer" required>
+  Number of Stack Overflow survey respondents who selected this technology for the given `type`. Based on ~90,000 global respondents.
+
+  **Example:** `13424` (openAI GPT chatbot models, used)
+
+  **Top used AI tools:**
+  | Technology | Count |
+  |---|---|
+  | openAI GPT (chatbot models) | 13,424 |
+  | Anthropic: Claude Sonnet | 7,063 |
+  | Gemini (Flash general purpose models) | 5,823 |
+  | openAI Reasoning models | 5,716 |
+</ResponseField>
+
+<Info>
+  `technology_rankings_used.csv` and `technology_rankings_wanted.csv` are direct subsets of this file filtered by `type`. Use the combined file for side-by-side used vs. wanted comparisons, or the split files for simpler queries.
+</Info>
+
+---
+
+## `technologies_clean_long_format.csv` — Respondent-Level Long Format
+
+The tidy, normalized version of the Stack Overflow survey technology data. Every row represents a single respondent's relationship with a single technology. This is the source used to compute `technology_rankings.csv`.
+
+```python
+df_long = pd.read_csv(DATA_CLEAN / "technologies_clean_long_format.csv")
+print(df_long.shape)  # (~1,176,875, 4)
+
+# Count respondents who use Python
+python_users = df_long[
+    (df_long['technology'] == 'Python') &
+    (df_long['type'] == 'used')
+].shape[0]
+print(f"Python users in survey: {python_users}")
+```
+
+<Warning>
+  This file is ~1.18 million rows and approximately 60 MB on disk. Load only the columns or filters you need in memory-constrained environments.
+</Warning>
+
+<ResponseField name="response_id" type="string" required>
+  Anonymous respondent identifier from the Stack Overflow 2025 survey. Matches `response_id` in `stack_tech_columns_clean.csv` for joining back to the wide format.
+
+  **Example:** `1` · `2` · `90231`
+</ResponseField>
+
+<ResponseField name="technology" type="string" required>
+  Name of the technology reported by this respondent. Same vocabulary as `technology_rankings.csv`.
+
+  **Example:** `SQL` · `Bash/Shell (all shells)` · `openAI GPT (chatbot models)`
+</ResponseField>
+
+<ResponseField name="category" type="string" required>
+  Technology category. Same controlled vocabulary as `technology_rankings.csv`.
+
+  **Example:** `language` · `database` · `ai_model_tool`
+</ResponseField>
+
+<ResponseField name="type" type="string" required>
+  Whether this respondent `used` or `wanted` this technology.
+
+  **Example:** `used` · `wanted`
+</ResponseField>

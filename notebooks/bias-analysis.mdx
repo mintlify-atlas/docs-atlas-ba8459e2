@@ -1,0 +1,169 @@
+---
+title: "Bias Analysis: Data Imbalances in Spanish Job Offers"
+sidebarTitle: "Bias Analysis"
+description: "Systematic review of 10 bias types in the job-market dataset — representation, location, salary, seniority, modality, contract, sector, temporal, source, and language bias."
+---
+
+The bias analysis notebook (`05_bias_analysis.ipynb`) sits at the end of the analytical pipeline and asks a deliberately uncomfortable question: *to what extent do the patterns we found in the data reflect the real Spanish job market, and to what extent do they reflect the way we collected the data?*
+
+The goal is not to prove discrimination or to assign fault. It is to detect imbalances and limitations that could cause a downstream reader to over-generalise from the dataset. Every bias documented here is a prompt to interpret results with appropriate caution — not a reason to distrust the analysis entirely.
+
+## Key variables under examination
+
+The following variables from `jobs_all_clean.csv` are the primary subjects of bias analysis:
+
+<CardGroup cols={3}>
+  <Card title="job_title" icon="user-tie">Representation and role-family imbalances</Card>
+  <Card title="salary" icon="euro-sign">Salary information availability bias</Card>
+  <Card title="location" icon="location-dot">Geographic concentration bias</Card>
+  <Card title="company" icon="building">Company representation bias</Card>
+  <Card title="description" icon="file-lines">Language and framing bias</Card>
+  <Card title="skills" icon="code">Skill mention patterns across sources</Card>
+  <Card title="seniority" icon="arrow-up">Seniority-level imbalances</Card>
+  <Card title="work_modality" icon="house-laptop">Remote/hybrid/on-site distribution</Card>
+  <Card title="contract_type" icon="file-contract">Contract type representation</Card>
+  <Card title="sector" icon="industry">Industry concentration</Card>
+  <Card title="posting_date" icon="calendar">Temporal window coverage</Card>
+</CardGroup>
+
+## The 10 bias types
+
+<Accordion title="1. Representation bias">
+  **What it is:** Some job types, titles, or companies appear far more often than others, making the dataset feel like a complete picture of the market when it is actually a skewed snapshot.
+
+  **How it manifests here:**
+  - The unified dataset is dominated by `df_jobs` (942 of 1,542 offers, ~61 %). Aggregate statistics will naturally reflect the composition of that single source more than any other.
+  - Popular job titles like "Data Analyst" or "Data Scientist" appear in multiples of more specialised titles like "Data Governance Engineer" or "AI Infrastructure Engineer". Role-family aggregations amplify this imbalance.
+  - Large tech companies and consultancies (Accenture, Capgemini, Indra) post high volumes of similar-sounding roles, inflating their apparent market share.
+
+  **Variables to watch:** `job_title`, `company`, `source_dataset`, `industry`.
+</Accordion>
+
+<Accordion title="2. Location bias">
+  **What it is:** The geographic distribution of offers does not reflect the full territory. Cities that post more digitally or that are well-covered by aggregator portals appear more prominent than they may be in practice.
+
+  **How it manifests here:**
+  - Madrid and Barcelona together account for a disproportionate share of all offers in the dataset.
+  - The Adzuna bulk-search strategy targeted 8 cities: Madrid, Barcelona, Valencia, Bilbao, Seville, Zaragoza, Málaga, and "remoto". Cities outside this list — including the entire Canary Islands, Murcia, Navarre, and hundreds of smaller municipalities — are structurally absent.
+  - Remote offers labelled with a generic location like "España" or "Remoto" cannot be geocoded to a specific region, making geographic analysis of remote work incomplete.
+
+  **Variables to watch:** `location`, `city_clean`, `is_remote`.
+
+  <Warning>
+    Any conclusion about "where data jobs are concentrated in Spain" from this dataset should be qualified with the note that the collection strategy was geographically biased toward major cities.
+  </Warning>
+</Accordion>
+
+<Accordion title="3. Salary information bias">
+  **What it is:** Salary data is only available for a subset of offers. If the offers that publish salary differ systematically from those that do not, salary statistics will be misleading.
+
+  **How it manifests here:**
+  - `salary_clean` is non-null in only **69.46 %** of offers. The remaining ~30 % are missing entirely.
+  - TecnoEmpleo has a structural salary-null rate of 78 % — companies on that portal routinely omit salary from their listings.
+  - Adzuna API returns `salary_min`/`salary_max` as null for many offers, particularly from smaller or less formal employers.
+  - There is a plausible selection effect: companies that publish salary may be larger, more structured, or more competitive. Statistics like "median salary for data analysts in Spain" computed from this dataset describe only the sub-market of transparent employers.
+
+  **Variables to watch:** `salary`, `salary_clean`, `source_dataset`.
+</Accordion>
+
+<Accordion title="4. Seniority bias">
+  **What it is:** The distribution of experience levels required in the dataset may not reflect the actual distribution of open roles in the market.
+
+  **How it manifests here:**
+  - Seniority information is frequently absent or buried inside the job description rather than in a structured field. The `seniority_level` column has high null rates in TecnoEmpleo and Adzuna-sourced offers.
+  - When seniority is available (mainly from `df_jobs`), the dataset shows a skew toward mid-level profiles, which may reflect the source's own collection bias rather than the market.
+  - Junior roles that require 0–1 years of experience may be less likely to appear on aggregator portals (which tend to carry more established companies with structured hiring pipelines) compared to LinkedIn or company career pages.
+
+  **Variables to watch:** `seniority_level`, `job_title`, `source_dataset`.
+</Accordion>
+
+<Accordion title="5. Work modality bias">
+  **What it is:** The distribution of remote, hybrid, and on-site offers in the dataset may overrepresent modalities that are more frequently stated explicitly in job descriptions.
+
+  **How it manifests here:**
+  - The most common value for `work_modality` in the EDA is `unknown` — many offers simply do not mention modality. This structural absence means the modality distribution we observe is based on a self-selected subset of transparent postings.
+  - Remote-labelled offers may be over-indexed among digitally savvy companies that post on aggregators; traditional employers with on-site requirements may use different channels.
+  - The Adzuna search keyword "remoto" was included as one of the eight location terms, which may artificially inflate the share of remote offers relative to their true market prevalence.
+
+  **Variables to watch:** `work_modality`, `is_remote`, `job_type`, `location`.
+</Accordion>
+
+<Accordion title="6. Contract type bias">
+  **What it is:** Certain contract forms dominate the dataset, potentially hiding the prevalence of freelance, part-time, fixed-term, or internship arrangements.
+
+  **How it manifests here:**
+  - Permanent full-time contracts are the most explicitly advertised type on general job portals. Freelance projects, consulting engagements, and internships tend to appear on specialist platforms (Malt, Workana, university portals) that are not included in this dataset.
+  - The `job_type` / `contract_type` field is sparsely populated across all sources, making it difficult to quantify the imbalance numerically without a manual review.
+
+  **Variables to watch:** `job_type`, `contract_type`.
+</Accordion>
+
+<Accordion title="7. Sector bias">
+  **What it is:** The technology and consulting sectors are over-represented in data-role job postings on public aggregators, while data-intensive sectors that hire data talent internally (banking, healthcare, insurance, retail) may be under-represented.
+
+  **How it manifests here:**
+  - TecnoEmpleo is, by design, a technology-focused portal. Its 600 offers skew toward pure-tech companies and consultancies.
+  - The international `df_jobs` dataset includes a `sector`/`industry` column but with coverage concentrated in fintech, e-commerce, and tech startups.
+  - Traditional sectors like public administration, agriculture, and manufacturing post data roles less frequently on the monitored channels, even though they employ data professionals.
+
+  **Variables to watch:** `industry`, `sector`, `source_dataset`.
+</Accordion>
+
+<Accordion title="8. Temporal bias">
+  **What it is:** Data collected over a short or specific time window reflects a snapshot, not a stable equilibrium. Seasonal hiring cycles, economic events, or platform-specific indexing behaviour can all distort the picture.
+
+  **How it manifests here:**
+  - The TecnoEmpleo dataset is labelled `spain_2026`, suggesting it was scraped or exported at a specific moment in early 2026. Market conditions at that moment (post-AI-boom hiring patterns, economic climate) are embedded in the data.
+  - Adzuna scraping used `max_pages=1` per keyword/city combination, capturing only the most recently posted offers. Older listings that are still active are systematically absent.
+  - The Stack Overflow survey represents responses collected in 2025. Professional technology preferences may shift meaningfully within a single year, particularly in AI tooling.
+
+  **Variables to watch:** `post_date`, `source_dataset`.
+</Accordion>
+
+<Accordion title="9. Source bias">
+  **What it is:** The platforms chosen to collect data each have their own audience, pricing model, and offer type. Combining sources does not eliminate each source's inherent bias — it compounds them.
+
+  **How it manifests here:**
+  - InfoJobs and Indeed — the two largest Spanish portals by traffic — are entirely absent from the collection due to anti-bot blocks. The dataset therefore misses whatever unique offer types those portals carry (e.g. more SME postings on InfoJobs).
+  - Stack Overflow respondents are not a random sample of data professionals in Spain. They skew toward English-speaking, internationally connected, and digitally active professionals — a different population from the average job-seeker on TecnoEmpleo.
+  - Adzuna aggregates from multiple sub-sources but does not disclose its full source list, making it impossible to assess duplication or coverage gaps definitively.
+
+  **Variables to watch:** `source_dataset`, any cross-source aggregate statistic.
+
+  <Info>
+    The `source_dataset` column in `jobs_all_clean.csv` makes it possible to filter or weight results by source. Analysts are encouraged to always segment key metrics by `source_dataset` before reporting them as "the market".
+  </Info>
+</Accordion>
+
+<Accordion title="10. Description and language bias">
+  **What it is:** The language, tone, and framing of job descriptions can systematically favour or discourage applications from certain groups — and can also affect how the data is processed and interpreted computationally.
+
+  **How it manifests here:**
+  - A significant portion of offers in `df_jobs` (the international dataset) are written in English, even when targeting Spanish candidates. Keyword-based skill extraction will miss equivalent skills mentioned in Spanish (`"análisis de datos"` vs `"data analysis"`).
+  - Descriptions that use exclusionary language (e.g. "rockstar developer", "ninja analyst") or list inflated experience requirements for entry-level roles may reflect company culture biases that are invisible to standard EDA.
+  - The Adzuna API returns truncated descriptions in some cases, meaning that skill mentions in the latter part of a job description may be systematically missed during text parsing.
+  - Spanish-language offers from TecnoEmpleo and Adzuna may use different terminology for the same skills, causing under-counting in skill-frequency analyses that rely on exact string matching.
+
+  **Variables to watch:** `description`, `skills`, `language` (implicit, not a column), `source_dataset`.
+</Accordion>
+
+## Summary of limitations
+
+<CardGroup cols={2}>
+  <Card title="No shared key across datasets" icon="link-slash">
+    Job offers and Stack Overflow responses cannot be joined at the row level. All cross-dataset comparisons are aggregate correlations, not individual matches.
+  </Card>
+  <Card title="Major portals are absent" icon="ban">
+    InfoJobs and Indeed — together the largest job portals in Spain — are entirely missing due to anti-bot protections. The dataset skews toward Adzuna's coverage universe.
+  </Card>
+  <Card title="Structured fields are sparse" icon="table">
+    `seniority_level`, `contract_type`, `industry`, and `work_modality` have high null rates across most sources. Analysis of these dimensions is based on a self-selected minority of offers that chose to fill them in.
+  </Card>
+  <Card title="Salary is not representative" icon="euro-sign">
+    Only ~69 % of offers have a parseable salary. The salary sub-population is likely skewed toward larger, more structured employers, making salary percentiles optimistic for the broader market.
+  </Card>
+</CardGroup>
+
+<Warning>
+  None of the biases documented here invalidate the project's findings. They are structural properties of the data that any reader should factor into their interpretation. The EDA and visualisations remain valid within their documented scope — but they should not be extrapolated to claim full representativeness of the Spanish data-role job market.
+</Warning>

@@ -1,0 +1,328 @@
+---
+title: "Scripts and Utility Reference for EDA Roles"
+sidebarTitle: "Scripts"
+description: "Full reference for build_notebook_docx_guide.py — the script that generates a Word presentation guide covering notebooks 02 and 03."
+---
+
+The `scripts/` directory contains utility code that lives outside the notebooks but supports the project workflow. Currently it holds one script: `build_notebook_docx_guide.py`, which generates a formatted Word document intended as a speaking guide for presenting the cleaning and EDA notebooks to an audience.
+
+## `build_notebook_docx_guide.py`
+
+**Purpose:** Programmatically builds a `.docx` Word document that summarises notebooks 02 (cleaning) and 03 (EDA) in a presenter-friendly format. The document includes section-by-section talking points, dataset summaries, library descriptions, methodology notes, and suggested presentation phrases — everything needed to walk through the notebooks live without reading from the code.
+
+**Output file:** `docs/guia_presentacion_notebooks_cleaning_eda.docx`
+
+**Depends on:** `python-docx 1.2.0` (installed via `requirements.txt`)
+
+### Running the script
+
+Execute from the project root — no arguments required:
+
+```bash
+# From the project root directory
+python scripts/build_notebook_docx_guide.py
+```
+
+The script writes the output file to `docs/` and prints a confirmation message. If `docs/` does not exist it is created automatically.
+
+<Note>
+  The script does not read any environment variables or external data files. It constructs the document entirely from hardcoded content and formatting logic, so it runs without Adzuna credentials or the CSV outputs from the notebooks.
+</Note>
+
+---
+
+## Document structure
+
+The generated Word document is divided into nine logical sections:
+
+<Steps>
+  <Step title="Title and subtitle">
+    Document header with the project name and a descriptive subtitle, styled with the project's primary blue (`#2E74B5`).
+  </Step>
+  <Step title="General flow overview">
+    A narrative summary of the end-to-end pipeline: raw data → cleaning → EDA → visualizations, with transition phrases for each handoff.
+  </Step>
+  <Step title="Notebook 02 — Cleaning">
+    Block-by-block breakdown of the cleaning notebook: which datasets are loaded, what transformations are applied, and which output files are produced.
+  </Step>
+  <Step title="Datasets generated">
+    A labeled table listing every CSV written to `data/clean/` with column counts and a short description.
+  </Step>
+  <Step title="Column unification">
+    Explanation of the schema harmonisation step — how three heterogeneous sources are mapped to a single English snake_case schema.
+  </Step>
+  <Step title="Notebook 03 — EDA">
+    Section-by-section walkthrough of the EDA notebook: structure analysis, null analysis, distribution analysis, and ranking generation.
+  </Step>
+  <Step title="Libraries used">
+    A reference table of every library used in notebooks 02 and 03 with a one-line description of its role in the analysis.
+  </Step>
+  <Step title="Methodology, phrases, and limitations">
+    Methodology explanation suitable for a non-technical audience, suggested presentation phrases, and a checklist of limitations to be transparent about during the presentation.
+  </Step>
+  <Step title="Closing statement">
+    A prepared closing paragraph summarising the project's contribution and next steps.
+  </Step>
+</Steps>
+
+---
+
+## Function reference
+
+### `build_document()`
+
+The main entry point. Instantiates a new `python-docx` `Document` object, calls every section builder in order, applies post-processing, and saves the result to `docs/guia_presentacion_notebooks_cleaning_eda.docx`.
+
+```python
+def build_document() -> None:
+    """Orchestrates document creation and writes the output file."""
+```
+
+Call chain:
+
+```
+build_document()
+  ├── configure_document(document)
+  ├── [section builder calls...]
+  ├── accent_document(document)
+  └── document.save("docs/guia_presentacion_notebooks_cleaning_eda.docx")
+```
+
+---
+
+### `configure_document(document)`
+
+Applies global page setup to the Word document: page size, margins, default font, heading styles, and a footer with the project name.
+
+```python
+def configure_document(document: Document) -> None:
+    """Set page margins, font (Calibri), heading styles, and footer."""
+```
+
+<Accordion title="Configuration details">
+  | Setting | Value |
+  |---|---|
+  | Page size | 8.5 × 11 inches (US Letter) |
+  | Margins | 1 inch on all sides |
+  | Default font | Calibri |
+  | Heading 1 color | `#2E74B5` (blue) |
+  | Heading 2 color | `#1F4D78` (dark blue) |
+  | Footer | Project name, centred |
+</Accordion>
+
+---
+
+### `accent_document(document)`
+
+Performs a post-processing pass over all paragraph runs in the document to fix Spanish accent characters (`é`, `á`, `ó`, `í`, `ú`, `ñ`, `ü`) that may have been corrupted during string construction.
+
+```python
+def accent_document(document: Document) -> None:
+    """Fix Spanish accent characters across all runs in the document."""
+```
+
+<Note>
+  This function is called once at the end of `build_document()`, after all content has been added. It iterates over every paragraph in the document body and corrects encoding issues in each run's text.
+</Note>
+
+---
+
+### `add_callout(document, title, body)`
+
+Inserts a single-cell table styled as a callout box with a shaded background. Used for highlighted notes, warnings, or key takeaways within a section.
+
+```python
+def add_callout(document: Document, title: str, body: str) -> None:
+    """Add a shaded single-cell callout table with a bold title and body text."""
+```
+
+<Accordion title="Parameters">
+  <ParamField path="document" type="Document" required>
+    The active `python-docx` Document instance to which the callout is appended.
+  </ParamField>
+  <ParamField path="title" type="str" required>
+    Bold label displayed at the top of the callout cell (e.g., `"Nota"`, `"Importante"`).
+  </ParamField>
+  <ParamField path="body" type="str" required>
+    Main body text of the callout, displayed below the title in regular weight.
+  </ParamField>
+</Accordion>
+
+Background color: `#E8EEF5` (light blue). Cell padding: 6 pt on all sides.
+
+---
+
+### `add_label_detail_table(document, rows, col_widths, header)`
+
+Inserts a two-column key-value table — the left column holds a label (bold) and the right column holds its detail. Suitable for dataset summaries, column listings, and parameter descriptions.
+
+```python
+def add_label_detail_table(
+    document: Document,
+    rows: list[tuple[str, str]],
+    col_widths: list[float],
+    header: str | None = None,
+) -> None:
+    """Add a two-column label–detail table with an optional header row."""
+```
+
+<Accordion title="Parameters">
+  <ParamField path="document" type="Document" required>
+    The active `python-docx` Document instance.
+  </ParamField>
+  <ParamField path="rows" type="list[tuple[str, str]]" required>
+    List of `(label, detail)` tuples. Each tuple becomes one row in the table.
+  </ParamField>
+  <ParamField path="col_widths" type="list[float]" required>
+    Two-element list specifying the width in inches of the label column and the detail column respectively (e.g., `[2.0, 4.5]`).
+  </ParamField>
+  <ParamField path="header" type="str">
+    Optional header string. When provided, a shaded header row spanning both columns is prepended to the table.
+  </ParamField>
+</Accordion>
+
+---
+
+### `add_matrix_table(document, headers, rows, widths)`
+
+Inserts a multi-column matrix table with a styled header row. Used for comparisons, library listings, and structured data that requires more than two columns.
+
+```python
+def add_matrix_table(
+    document: Document,
+    headers: list[str],
+    rows: list[list[str]],
+    widths: list[float],
+) -> None:
+    """Add a full matrix table with a shaded header row and data rows."""
+```
+
+<Accordion title="Parameters">
+  <ParamField path="document" type="Document" required>
+    The active `python-docx` Document instance.
+  </ParamField>
+  <ParamField path="headers" type="list[str]" required>
+    Column header labels. Length must match the length of each inner list in `rows` and the length of `widths`.
+  </ParamField>
+  <ParamField path="rows" type="list[list[str]]" required>
+    Data rows. Each inner list is one table row; values map positionally to `headers`.
+  </ParamField>
+  <ParamField path="widths" type="list[float]" required>
+    Column widths in inches. Must have the same length as `headers`.
+  </ParamField>
+</Accordion>
+
+Header row background: `#2E74B5` (blue) with white bold text.
+
+---
+
+### `add_paragraph(document, text, style, bold_prefix)`
+
+Inserts a single paragraph with a specified Word paragraph style and an optional bold prefix string.
+
+```python
+def add_paragraph(
+    document: Document,
+    text: str,
+    style: str = "Normal",
+    bold_prefix: str | None = None,
+) -> Paragraph:
+    """Add a styled paragraph, optionally prefixed with a bold run."""
+```
+
+<Accordion title="Parameters">
+  <ParamField path="document" type="Document" required>
+    The active `python-docx` Document instance.
+  </ParamField>
+  <ParamField path="text" type="str" required>
+    Main paragraph text, rendered in the specified style weight.
+  </ParamField>
+  <ParamField path="style" type="str">
+    Word paragraph style name (default: `"Normal"`). Common values used in this script: `"Heading 1"`, `"Heading 2"`, `"Normal"`.
+  </ParamField>
+  <ParamField path="bold_prefix" type="str">
+    When provided, this string is inserted as a bold run before the main `text`. Useful for inline labels such as `"Output:"` or `"Nota:"`.
+  </ParamField>
+</Accordion>
+
+---
+
+### `add_bullets(document, items)`
+
+Inserts a bulleted list using Word's built-in `"List Bullet"` paragraph style.
+
+```python
+def add_bullets(document: Document, items: list[str]) -> None:
+    """Add a bulleted list. Each string in items becomes one bullet point."""
+```
+
+<Accordion title="Parameters">
+  <ParamField path="document" type="Document" required>
+    The active `python-docx` Document instance.
+  </ParamField>
+  <ParamField path="items" type="list[str]" required>
+    List of strings. Each string is added as a separate `"List Bullet"` paragraph.
+  </ParamField>
+</Accordion>
+
+---
+
+### `add_numbered(document, items)`
+
+Inserts a numbered list using Word's built-in `"List Number"` paragraph style.
+
+```python
+def add_numbered(document: Document, items: list[str]) -> None:
+    """Add a numbered list. Each string in items becomes one numbered item."""
+```
+
+<Accordion title="Parameters">
+  <ParamField path="document" type="Document" required>
+    The active `python-docx` Document instance.
+  </ParamField>
+  <ParamField path="items" type="list[str]" required>
+    List of strings. Each string is added as a separate `"List Number"` paragraph; Word handles auto-incrementing the numbers.
+  </ParamField>
+</Accordion>
+
+---
+
+## Colour palette
+
+The script uses a four-colour palette consistent with the project's visual identity:
+
+| Name | Hex | Usage |
+|---|---|---|
+| Blue | `#2E74B5` | Heading 1, matrix table headers, title text |
+| Dark blue | `#1F4D78` | Heading 2 |
+| Light blue | `#E8EEF5` | Callout box backgrounds |
+| Light gray | `#F2F4F7` | Label-detail table header rows |
+
+---
+
+## Extending the script
+
+To add a new section to the generated document, create a helper function following the established pattern and call it inside `build_document()`:
+
+```python
+def add_my_new_section(document):
+    add_paragraph(document, "My New Section", style="Heading 1")
+    add_paragraph(document, "Introductory text for the section.")
+    add_bullets(document, [
+        "First point",
+        "Second point",
+        "Third point",
+    ])
+
+def build_document():
+    document = Document()
+    configure_document(document)
+    # ... existing section calls ...
+    add_my_new_section(document)   # <-- add your call here
+    accent_document(document)
+    document.save("docs/guia_presentacion_notebooks_cleaning_eda.docx")
+```
+
+<Tip>
+  Always call `accent_document(document)` as the **last step** before `document.save()`. Calling it earlier means any text added after the call will not have its accents corrected.
+</Tip>

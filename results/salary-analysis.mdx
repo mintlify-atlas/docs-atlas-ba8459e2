@@ -1,0 +1,160 @@
+---
+title: "Salary Analysis: Data Roles Job Market in Spain"
+sidebarTitle: Salary Analysis
+description: "Methodology, coverage gaps, source comparisons, and geographic and role-based salary distributions for data roles across the unified Spanish job dataset."
+---
+
+Salary analysis is one of the most sought-after insights from any job market EDA — and one of the most methodologically fraught. This page documents how `salary_clean` was constructed, what coverage looks like across sources, and how salary distributions vary by role, geography, and data source. It also explains the key caveats that must be kept in mind when interpreting any numeric salary figures from this dataset.
+
+## Coverage Summary
+
+Salary data is not universally available across the three sources that make up the unified dataset. After cleaning and midpoint conversion, **69.46%** of the 1,542 unified offers include a usable `salary_clean` value. The remaining **30.54%** have no salary information.
+
+<CardGroup cols={2}>
+  <Card title="69.46% — With Salary" icon="circle-check">
+    Offers where `salary_clean` was successfully extracted and converted to a comparable EUR numeric value.
+  </Card>
+  <Card title="30.54% — No Salary" icon="circle-xmark">
+    Offers where salary was absent, described qualitatively (e.g., "competitive"), or could not be reliably parsed.
+  </Card>
+</CardGroup>
+
+<Warning>
+  Salary coverage is **highly uneven across sources**. `df_tecno` (Tecnoempleo) has approximately **78% null salary rate** — the vast majority of its listings do not publish a salary figure, which is a known characteristic of Spanish job boards. By contrast, `df_jobs` (the international source) has near-complete salary coverage. Any aggregate salary statistic is therefore weighted towards `df_jobs`, which introduces significant upward bias from non-Spanish, particularly US-based, salary figures.
+</Warning>
+
+## The `salary_clean` Methodology
+
+Raw salary data arrives in a variety of formats across the three sources: annual ranges in EUR, hourly rates, ambiguous "up to X" figures, and sometimes salaries in USD or GBP. The cleaning pipeline harmonises these into a single `salary_clean` column using the following logic:
+
+<Steps>
+  <Step title="Parse the raw salary string">
+    Extract numeric values from salary text. Handles formats such as `€40,000 - €55,000/year`, `$100k+`, `up to 60.000€`, and similar patterns.
+  </Step>
+  <Step title="Convert to annual EUR">
+    Hourly and monthly rates are annualised using standard multipliers. Non-EUR currencies are converted using approximate exchange rates at the time of data collection.
+  </Step>
+  <Step title="Compute the midpoint for ranges">
+    For offers stating a salary range (e.g., `€100,472 - €200,938`), `salary_clean` is set to the arithmetic midpoint — in this example, **€150,705**. This is an approximation of expected compensation, not a guaranteed figure.
+  </Step>
+  <Step title="Flag outliers">
+    The `salary_clean_outlier` boolean column is set to `True` for values that fall outside a statistical threshold (typically defined using IQR or z-score methods). These outliers are excluded from comparative analyses to prevent distortion.
+  </Step>
+</Steps>
+
+<Note>
+  `salary_clean` is an **estimate**, not an exact salary. For range-based offers, the actual salary offered to a candidate could be anywhere within the published range. The midpoint convention is a reasonable central estimate but should not be treated as a precise figure.
+</Note>
+
+## Source Differences
+
+The three data sources have structurally different salary profiles, and this difference must be understood before making any cross-source comparisons.
+
+<Accordion title="df_jobs — International source (data_science_job_posts_2025.csv)">
+  - **942 records** total; approximately 143 explicitly Spanish entries.
+  - Near-complete salary coverage — the majority of records include a parseable salary field.
+  - International scope means many salaries are from the US, UK, or other high-wage markets.
+  - USD-denominated salaries converted to EUR will appear inflated relative to Spanish-market offers.
+  - **Effect on aggregates**: This source pulls the overall salary distribution significantly upward.
+</Accordion>
+
+<Accordion title="df_tecno — Spanish market source (tecnoempleo_spain_2026.csv)">
+  - Approximately **600 records**, exclusively Spanish market.
+  - **~78% null salary rate** — most Tecnoempleo listings omit salary information entirely.
+  - Where salary is present, figures reflect the actual Spanish labour market and are generally lower than `df_jobs` equivalents.
+  - **Effect on aggregates**: Under-represented in salary analyses due to high null rate, despite being the most representative Spanish market source.
+</Accordion>
+
+<Accordion title="df_scraping — Adzuna scrape">
+  - Additional Spanish recent job offers, scraped from Adzuna.
+  - Salary coverage varies; more complete than `df_tecno` but less so than `df_jobs`.
+  - Focuses on current Spanish market offers, complementing the other two sources.
+</Accordion>
+
+<Warning>
+  **Direct salary comparisons between `df_jobs` and `df_tecno` should be made with extreme caution.** The two sources differ not only in geographic scope but in how salaries are reported. Comparing aggregate statistics across these sources without stratification by `source_dataset` will produce misleading results.
+</Warning>
+
+## Geographic Salary Variation
+
+Salary distributions differ meaningfully by location. Madrid, as the dominant city in the dataset, shows a broad salary range reflecting the concentration of both local SMEs and large multinational employers. Initial analysis from Block 2 of Notebook 04 (`02b_salario_rol.png`) indicates:
+
+- **Madrid**: Highest median salary among Spanish cities, driven by multinational presence.
+- **Barcelona**: Second highest, with a notable startup and tech company premium.
+- **Other cities**: Generally lower median salaries, with smaller sample sizes making statistical inference less reliable.
+
+<Info>
+  Geographic salary analysis is most meaningful when restricted to offers from Spanish-market sources (`df_tecno`, `df_scraping`) and when the `salary_clean_outlier` flag is used to exclude extreme values. Using the full unified dataset without filtering will inflate apparent salaries for all cities due to international offers.
+</Info>
+
+## Salary by Role Family
+
+The Block 2 visualisation (`02b_salario_rol.png`) also disaggregates salary by `job_family`. Preliminary patterns from the EDA include:
+
+- **data_science_ai**: Widest salary range; highest upper quartile, reflecting both junior ML roles and senior AI research positions.
+- **data_engineering**: Consistently strong median salary; less variance than data science.
+- **analytics / BI**: Lower median than engineering and science roles; compressed range.
+- **data_management / governance**: Present in smaller numbers; salary patterns less reliable due to sample size.
+
+<Tip>
+  When analysing salary by role family, always stratify by `source_dataset` first. Because `data_science_ai` roles are over-represented in `df_jobs` (the international source), naive aggregation will make this family appear disproportionately well-compensated relative to what the Spanish market alone would show.
+</Tip>
+
+## Working with Salary Data
+
+The following code demonstrates how to load the cleaned dataset, check salary coverage, remove outliers, and produce a source-stratified salary summary:
+
+```python
+import pandas as pd
+from pathlib import Path
+
+df = pd.read_csv(Path('data/clean') / 'jobs_all_clean.csv')
+
+# Salary coverage
+print(f"Salary coverage: {df['salary_clean'].notna().mean():.2%}")
+
+# Filter out outliers for cleaner analysis
+df_clean = df[~df['salary_clean_outlier']]
+print(df_clean['salary_clean'].describe())
+
+# Salary by source
+print(df_clean.groupby('source_dataset')['salary_clean'].describe())
+```
+
+<Accordion title="Recommended filtering workflow for salary analysis">
+
+For the most interpretable salary analysis of the **Spanish market specifically**, apply the following filters before aggregating:
+
+```python
+import pandas as pd
+from pathlib import Path
+
+df = pd.read_csv(Path('data/clean') / 'jobs_all_clean.csv')
+
+# Step 1: Keep only Spanish-market sources
+df_es = df[df['source_dataset'].isin(['df_tecno', 'df_scraping'])]
+
+# Step 2: Remove statistical outliers
+df_es = df_es[~df_es['salary_clean_outlier']]
+
+# Step 3: Drop rows with no salary data
+df_es = df_es.dropna(subset=['salary_clean'])
+
+# Step 4: Analyse
+print(f"Remaining records: {len(df_es)}")
+print(df_es['salary_clean'].describe())
+print(df_es.groupby('job_family')['salary_clean'].median().sort_values(ascending=False))
+```
+
+Note that after applying all three filters to Spanish-market sources with high null salary rates, the resulting sample may be small. Interpret results accordingly.
+
+</Accordion>
+
+## Salary Visualisation Reference
+
+Notebook 04 produces two salary-specific visualisations:
+
+- **`02_analisis_salarial.png`** — Overall salary distribution histogram and box plot for `salary_clean`, with and without outlier exclusion.
+- **`02b_salario_rol.png`** — Salary distribution broken down by `job_family`, showing median, IQR, and range for each role category.
+
+Both visualisations are generated after applying the `salary_clean_outlier` filter to produce readable distributions. The raw (unfiltered) distribution is extremely right-skewed due to international USD-denominated offers at the high end.
