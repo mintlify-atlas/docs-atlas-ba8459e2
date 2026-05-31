@@ -1,7 +1,7 @@
 ---
 title: "Bias Analysis: Data Imbalances in Spanish Job Offers"
 sidebarTitle: "Bias Analysis"
-description: "Systematic review of 10 bias types in the job-market dataset — representation, location, salary, seniority, modality, contract, sector, temporal, source, and language bias."
+description: "Nine bias types in the Spanish job-market dataset: representation, location, salary, seniority, modality, contract, sector, language, and temporal bias."
 ---
 
 The bias analysis notebook (`05_bias_analysis.ipynb`) sits at the end of the analytical pipeline and asks a deliberately uncomfortable question: *to what extent do the patterns we found in the data reflect the real Spanish job market, and to what extent do they reflect the way we collected the data?*
@@ -26,13 +26,13 @@ The following variables from `jobs_all_clean.csv` are the primary subjects of bi
   <Card title="posting_date" icon="calendar">Temporal window coverage</Card>
 </CardGroup>
 
-## The 10 bias types
+## The 9 bias types
 
 <Accordion title="1. Representation bias">
   **What it is:** Some job types, titles, or companies appear far more often than others, making the dataset feel like a complete picture of the market when it is actually a skewed snapshot.
 
   **How it manifests here:**
-  - The unified dataset is dominated by `df_jobs` (942 of 1,542 offers, ~61 %). Aggregate statistics will naturally reflect the composition of that single source more than any other.
+  - The unified dataset is dominated by `df_jobs` (942 of 2,167 offers, ~43 %). Aggregate statistics will naturally reflect the composition of that single source more than any other.
   - Popular job titles like "Data Analyst" or "Data Scientist" appear in multiples of more specialised titles like "Data Governance Engineer" or "AI Infrastructure Engineer". Role-family aggregations amplify this imbalance.
   - Large tech companies and consultancies (Accenture, Capgemini, Indra) post high volumes of similar-sounding roles, inflating their apparent market share.
 
@@ -58,7 +58,7 @@ The following variables from `jobs_all_clean.csv` are the primary subjects of bi
   **What it is:** Salary data is only available for a subset of offers. If the offers that publish salary differ systematically from those that do not, salary statistics will be misleading.
 
   **How it manifests here:**
-  - `salary_clean` is non-null in only **69.46 %** of offers. The remaining ~30 % are missing entirely.
+  - `salary_clean` is non-null in only **50.95 %** of offers. The remaining ~49 % are missing entirely.
   - TecnoEmpleo has a structural salary-null rate of 78 % — companies on that portal routinely omit salary from their listings.
   - Adzuna API returns `salary_min`/`salary_max` as null for many offers, particularly from smaller or less formal employers.
   - There is a plausible selection effect: companies that publish salary may be larger, more structured, or more competitive. Statistics like "median salary for data analysts in Spain" computed from this dataset describe only the sub-market of transparent employers.
@@ -109,33 +109,7 @@ The following variables from `jobs_all_clean.csv` are the primary subjects of bi
   **Variables to watch:** `industry`, `sector`, `source_dataset`.
 </Accordion>
 
-<Accordion title="8. Temporal bias">
-  **What it is:** Data collected over a short or specific time window reflects a snapshot, not a stable equilibrium. Seasonal hiring cycles, economic events, or platform-specific indexing behaviour can all distort the picture.
-
-  **How it manifests here:**
-  - The TecnoEmpleo dataset is labelled `spain_2026`, suggesting it was scraped or exported at a specific moment in early 2026. Market conditions at that moment (post-AI-boom hiring patterns, economic climate) are embedded in the data.
-  - Adzuna scraping used `max_pages=1` per keyword/city combination, capturing only the most recently posted offers. Older listings that are still active are systematically absent.
-  - The Stack Overflow survey represents responses collected in 2025. Professional technology preferences may shift meaningfully within a single year, particularly in AI tooling.
-
-  **Variables to watch:** `post_date`, `source_dataset`.
-</Accordion>
-
-<Accordion title="9. Source bias">
-  **What it is:** The platforms chosen to collect data each have their own audience, pricing model, and offer type. Combining sources does not eliminate each source's inherent bias — it compounds them.
-
-  **How it manifests here:**
-  - InfoJobs and Indeed — the two largest Spanish portals by traffic — are entirely absent from the collection due to anti-bot blocks. The dataset therefore misses whatever unique offer types those portals carry (e.g. more SME postings on InfoJobs).
-  - Stack Overflow respondents are not a random sample of data professionals in Spain. They skew toward English-speaking, internationally connected, and digitally active professionals — a different population from the average job-seeker on TecnoEmpleo.
-  - Adzuna aggregates from multiple sub-sources but does not disclose its full source list, making it impossible to assess duplication or coverage gaps definitively.
-
-  **Variables to watch:** `source_dataset`, any cross-source aggregate statistic.
-
-  <Info>
-    The `source_dataset` column in `jobs_all_clean.csv` makes it possible to filter or weight results by source. Analysts are encouraged to always segment key metrics by `source_dataset` before reporting them as "the market".
-  </Info>
-</Accordion>
-
-<Accordion title="10. Description and language bias">
+<Accordion title="8. Description and language bias">
   **What it is:** The language, tone, and framing of job descriptions can systematically favour or discourage applications from certain groups — and can also affect how the data is processed and interpreted computationally.
 
   **How it manifests here:**
@@ -145,6 +119,17 @@ The following variables from `jobs_all_clean.csv` are the primary subjects of bi
   - Spanish-language offers from TecnoEmpleo and Adzuna may use different terminology for the same skills, causing under-counting in skill-frequency analyses that rely on exact string matching.
 
   **Variables to watch:** `description`, `skills`, `language` (implicit, not a column), `source_dataset`.
+</Accordion>
+
+<Accordion title="9. Temporal bias">
+  **What it is:** Data collected over a short or specific time window reflects a snapshot, not a stable equilibrium. Seasonal hiring cycles, economic events, or platform-specific indexing behaviour can all distort the picture.
+
+  **How it manifests here:**
+  - The TecnoEmpleo dataset is labelled `spain_2026`, suggesting it was scraped or exported at a specific moment in early 2026. Market conditions at that moment (post-AI-boom hiring patterns, economic climate) are embedded in the data.
+  - Adzuna scraping used `max_pages=1` per keyword/city combination, capturing only the most recently posted offers. Older listings that are still active are systematically absent.
+  - The Stack Overflow survey represents responses collected in 2025. Professional technology preferences may shift meaningfully within a single year, particularly in AI tooling.
+
+  **Variables to watch:** `post_date`, `source_dataset`.
 </Accordion>
 
 ## Summary of limitations
@@ -160,7 +145,7 @@ The following variables from `jobs_all_clean.csv` are the primary subjects of bi
     `seniority_level`, `contract_type`, `industry`, and `work_modality` have high null rates across most sources. Analysis of these dimensions is based on a self-selected minority of offers that chose to fill them in.
   </Card>
   <Card title="Salary is not representative" icon="euro-sign">
-    Only ~69 % of offers have a parseable salary. The salary sub-population is likely skewed toward larger, more structured employers, making salary percentiles optimistic for the broader market.
+    Only ~51 % of offers have a parseable salary. The salary sub-population is likely skewed toward larger, more structured employers, making salary percentiles optimistic for the broader market.
   </Card>
 </CardGroup>
 

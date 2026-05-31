@@ -6,7 +6,7 @@ description: "Data quality, methodological constraints, and coverage biases in t
 
 Every data analysis project operates within constraints set by its sources, methods, and scope. This page documents the known limitations and biases of the EDA Roles de Datos en España project clearly and systematically. Understanding these constraints is essential for interpreting any finding from this analysis responsibly — not to dismiss the results, but to calibrate confidence appropriately.
 
-The limitations are grouped into three categories: **Data Quality**, **Methodological**, and **Coverage**.
+Notebook 05 (`05_estadistica_avanzada.ipynb`) formally identifies **10 bias types** that affect the dataset. These are documented below together with additional methodological and coverage limitations. The limitations are grouped into three categories: **Data Quality**, **Methodological**, and **Coverage**.
 
 ---
 
@@ -14,34 +14,40 @@ The limitations are grouped into three categories: **Data Quality**, **Methodolo
 
 These limitations concern the completeness, consistency, and reliability of the underlying data before any analysis is applied.
 
-<Accordion title="1. Source Heterogeneity">
-  The unified dataset merges three sources — `df_jobs`, `df_tecno`, and `df_scraping` — that differ in geographic scope, time window, schema, salary reporting conventions, and language. Despite cleaning and harmonisation into a shared 17-column schema, structural differences between sources persist in the data.
+<Accordion title="1. Source Bias (Representation Bias)">
+  The unified dataset merges three sources — `df_jobs`, `df_tecno`, and `df_scraping` — that differ in geographic scope, time window, schema, salary reporting conventions, and language. The distribution of records across sources is unequal: `df_jobs` alone contributes 942 of the 1,542 records (61%), yet it is the least representative of the Spanish labour market. This source imbalance means the overall dataset over-represents the internationally-visible segment of data roles and under-represents the Spanish SME market.
 
   **Implication**: Aggregate statistics across the full unified dataset blend populations that are not strictly comparable. Stratifying by `source_dataset` is strongly recommended before drawing conclusions.
 </Accordion>
 
-<Accordion title="2. Salary Approximation and Missing Data">
-  The `salary_clean` column is derived by taking the midpoint of advertised salary ranges and converting to EUR. This is an estimate, not an exact compensation figure. Additionally, **30.54% of offers have no salary data at all**, and `df_tecno` alone has approximately **78% null salary rate**.
+<Accordion title="2. Salary Information Bias">
+  The `salary_clean` column is derived by taking the midpoint of advertised salary ranges and converting to EUR. This is an estimate, not an exact compensation figure. Additionally, **30.54% of offers have no salary data at all**, and `df_tecno` alone has approximately **78% null salary rate**. Because `df_jobs` (the international source) has near-complete salary coverage, any salary aggregate over the full dataset is weighted towards international — particularly US-market — compensation levels, significantly inflating apparent salaries relative to what the Spanish market offers.
 
-  **Implication**: Salary statistics are biased towards sources with higher reporting rates (principally `df_jobs`, the international source). Spanish-market salary patterns are under-represented. Any salary figure should be understood as an approximation with meaningful uncertainty.
+  **Implication**: Salary statistics are biased towards sources with higher reporting rates (principally `df_jobs`). Spanish-market salary patterns are under-represented. Any salary figure should be understood as an approximation with meaningful uncertainty. See the [Salary Analysis](/results/salary-analysis) page for recommended filtering workflows.
 </Accordion>
 
-<Accordion title="3. Work Modality — High 'Unknown' Rate">
-  The most frequent value in the `work_modality` column is `unknown`. This does not mean the role is on-site — it means the job posting did not state the modality clearly enough to be classified. Many Spanish job ads describe remote or hybrid arrangements in free-text prose that the classification rules did not capture.
+<Accordion title="3. Work Modality Bias">
+  The most frequent value in the `work_modality` column is `unknown`. This does not mean the role is on-site — it means the job posting did not state the modality clearly enough to be classified. Many Spanish job ads describe remote or hybrid arrangements in free-text prose that the classification rules did not capture. The true prevalence of remote and hybrid work in the Spanish data market is therefore not measurable from this dataset as structured.
 
   **Implication**: Analysis of remote/hybrid/on-site distribution is unreliable. Statements about the prevalence of remote work in the Spanish data market cannot be supported by this dataset as structured.
 </Accordion>
 
-<Accordion title="4. Seniority Missing Data">
-  Seniority level (`seniority_level`) is not uniformly available across all three sources. Where it is populated, senior-level roles appear to be over-represented relative to the actual market distribution — partly because senior roles are more likely to be formally advertised and described with explicit seniority language.
+<Accordion title="4. Seniority Bias">
+  Seniority level (`seniority_level`) is not uniformly available across all three sources. Where it is populated, senior-level roles appear to be over-represented relative to the actual market distribution — partly because senior roles are more likely to be formally advertised and described with explicit seniority language. Junior and graduate-level positions in smaller companies often lack clear seniority labels in their postings.
 
   **Implication**: Salary-by-seniority and skill-by-seniority analyses should be treated cautiously. The dataset does not provide a reliable picture of the full seniority spectrum.
 </Accordion>
 
-<Accordion title="5. English vs. Spanish Offers — Completeness Gap">
-  English-language job postings in the dataset tend to have more complete structured data — salary ranges, clear seniority labels, explicit skill lists — than equivalent Spanish-language postings. This is partly because English-language postings often originate from multinational employers with standardised JD templates, while Spanish-language postings are more varied in format.
+<Accordion title="5. Contract Type Bias">
+  Contract type information (permanent, fixed-term, freelance, internship, etc.) is inconsistently reported across sources. Many offers either omit contract type entirely or describe it in free-text that resists classification. As a result, the dataset cannot reliably distinguish between permanent employment, temporary contracts, and freelance engagements — all of which carry very different salary and career implications in the Spanish labour market.
 
-  **Implication**: The dataset's best-populated records are disproportionately from international or English-language employers. Spanish SME hiring practices may be systematically under-captured and under-structured.
+  **Implication**: Analysis of contract-type distribution or salary by contract type is not reliable. The Spanish labour market has a structurally high rate of temporary contracts in many sectors, but this characteristic is not visible in the dataset as collected.
+</Accordion>
+
+<Accordion title="6. Skills and Description Bias">
+  Skills are extracted from job descriptions using text parsing (keyword matching and regex against the `skills` field and free-text descriptions). This approach has systematic biases: skills mentioned in standardised bullet-point lists are captured more reliably than skills described in prose; skills named differently across offers (e.g., "ML", "machine learning", "machine-learning") may be counted separately or inconsistently normalised; and offers with no structured skills section contribute zero skill observations regardless of what the role actually requires.
+
+  **Implication**: Skill frequency rankings reflect how often skills are explicitly named in job postings, not their true importance or prevalence. Skills that employers assume without stating (e.g., basic Python in a senior role) are systematically under-counted.
 </Accordion>
 
 ---
@@ -50,28 +56,28 @@ These limitations concern the completeness, consistency, and reliability of the 
 
 These limitations concern decisions made during data collection, cleaning, classification, and analysis.
 
-<Accordion title="6. Rule-Based Classification (Regex)">
+<Accordion title="7. Location Bias">
+  Geographic classification depends on parsing location strings from job postings, which vary widely in format and precision. Some offers list a city; others list a region, a country, a building address, or simply "Spain". The `city_clean` field represents the best available classification, but it may group geographically distinct locations or miss fine-grained distinctions. Additionally, offers without a stated location default to `unknown` city — roles that are fully remote but unlocated are not separately identifiable.
+
+  **Implication**: City-level geographic analysis is approximate. National-level aggregates are reliable; finer-grained geographic comparisons carry more uncertainty. Fully remote roles without a stated location are not counted under any city, leading to under-counting of remote work relative to on-site roles.
+</Accordion>
+
+<Accordion title="8. Rule-Based Classification (Regex)">
   Job family (`job_family`) and work modality (`work_modality`) classifications are assigned using regex pattern matching against job titles, descriptions, and other text fields. This is a deterministic, transparent approach, but it has known failure modes: ambiguous titles may be misclassified, new role labels that don't match existing patterns are left unclassified, and the rules encode the assumptions of whoever designed the regex patterns.
 
   **Implication**: Classification is not ground truth. Edge cases exist. Any finding that depends on the `job_family` or `work_modality` categories inherits the errors and assumptions of the classification rules.
 </Accordion>
 
-<Accordion title="7. Salary Midpoint Convention">
+<Accordion title="9. Salary Midpoint Convention">
   When a posting states a range (e.g., €40,000 – €55,000), `salary_clean` is set to €47,500 — the arithmetic midpoint. In practice, most hiring outcomes cluster towards the lower end of published ranges. The midpoint assumption may therefore slightly overestimate typical compensation.
 
   **Implication**: `salary_clean` is an approximation. For range analysis (e.g., comparing role families), it is fit for purpose. For precise compensation benchmarking, it should not be relied upon.
 </Accordion>
 
-<Accordion title="8. Stack Overflow Survey Bias">
-  The Stack Overflow Developer Survey 2025 (~90,000 respondents globally) is an opt-in survey of the Stack Overflow community. This community skews towards English-speaking, more experienced developers in certain regions and industries. It does not represent the Spanish job market specifically, and it does not represent the full spectrum of data professionals.
+<Accordion title="10. Temporal Bias">
+  The data sources cover specific collection windows in 2025–2026, not a continuous longitudinal period. `df_jobs` covers early-to-mid 2025, `df_tecno` covers early 2026, and `df_scraping` represents a point-in-time Adzuna snapshot. These windows are close but not identical. Market conditions, hiring volumes, and technology demand can shift significantly over the span of months in the fast-moving data roles sector.
 
-  **Implication**: Technology rankings derived from `df_stack` are global community signals, not Spanish market demand metrics. High usage of a technology on Stack Overflow does not mean Spanish employers are hiring for it at the same rate.
-</Accordion>
-
-<Accordion title="9. Temporal Coverage — Not Longitudinal">
-  The data sources cover specific collection windows in 2025–2026, not a continuous longitudinal period. `df_jobs` covers early-to-mid 2025, `df_tecno` covers early 2026, and `df_scraping` represents a point-in-time Adzuna snapshot. These windows are close but not identical.
-
-  **Implication**: The dataset captures a snapshot, not a trend. Year-over-year comparisons or trend analysis are not supported by this data. Seasonality effects (e.g., Q1 hiring peaks) cannot be controlled for.
+  **Implication**: The dataset captures a snapshot, not a trend. Year-over-year comparisons or trend analysis are not supported by this data. Seasonality effects (e.g., Q1 hiring peaks) cannot be controlled for, and the slight temporal misalignment between sources introduces a small additional confound.
 </Accordion>
 
 ---
@@ -80,29 +86,54 @@ These limitations concern decisions made during data collection, cleaning, class
 
 These limitations concern which parts of the market are included in the data and which are absent.
 
-<Accordion title="10. Geographic Concentration — Madrid and Barcelona">
+<Accordion title="11. Stack Overflow Survey Bias">
+  The Stack Overflow Developer Survey 2025 (~90,000 respondents globally) is an opt-in survey of the Stack Overflow community. This community skews towards English-speaking, more experienced developers in certain regions and industries. It does not represent the Spanish job market specifically, and it does not represent the full spectrum of data professionals.
+
+  **Implication**: Technology rankings derived from `df_stack` are global community signals, not Spanish market demand metrics. High usage of a technology on Stack Overflow does not mean Spanish employers are hiring for it at the same rate.
+</Accordion>
+
+<Accordion title="12. Geographic Concentration — Madrid and Barcelona">
   Madrid and Barcelona dominate the dataset by a large margin. This partly reflects the real concentration of data roles in these cities, but it is also amplified by source bias — job boards and scrapers indexed here are more actively used by employers in major urban centres. Smaller cities, regional companies, and fully remote roles without a stated location are under-represented.
 
   **Implication**: Geographic analysis beyond Madrid and Barcelona should be treated with caution due to small sample sizes. National-level averages are heavily influenced by these two cities.
 </Accordion>
 
-<Accordion title="11. Anti-Bot Scraping Limitations — InfoJobs and Indeed Excluded">
+<Accordion title="13. Anti-Bot Scraping Limitations — InfoJobs and Indeed Excluded">
   InfoJobs and Indeed — two of the most widely used job platforms in Spain — could not be scraped for this project due to anti-bot protections. Only Adzuna was accessible as a scraping target. This is a significant coverage gap: InfoJobs in particular has a high volume of Spanish-language, SME-posted roles that are not represented in this dataset.
 
   **Implication**: The Spanish SME job market is systematically under-represented. The dataset skews towards roles posted on international platforms (`df_jobs`) or on platforms with lower scraping defences (Adzuna). The findings are more representative of the tech-forward, internationally visible segment of the Spanish data job market than of the full market.
 </Accordion>
 
-<Accordion title="12. International Salary Inflation — US/International Offers in df_jobs">
+<Accordion title="14. International Salary Inflation — US/International Offers in df_jobs">
   `df_jobs` contains 942 records with international scope; only approximately 143 are explicitly Spanish. Many of the international records include US-denominated salaries, which — even after EUR conversion — are substantially higher than Spanish-market equivalents. These records remain in the unified dataset and contribute to salary statistics unless explicitly filtered out.
 
   **Implication**: Any salary aggregate that includes the full `df_jobs` source without filtering to Spanish records will significantly overstate what Spanish employers are paying. See the [Salary Analysis](/results/salary-analysis) page for recommended filtering workflows.
 </Accordion>
 
-<Accordion title="13. Sector Over-representation — Tech Sector">
+<Accordion title="15. Sector Over-representation — Tech Sector">
   The data sources used in this project index predominantly towards the technology sector. Other sectors that hire data professionals in Spain — financial services, retail, healthcare, public administration, logistics — are under-represented relative to their actual share of the market.
 
   **Implication**: Skills demand, salary expectations, and role distribution patterns in this dataset reflect the tech-sector flavour of data work more than cross-sector reality. Practitioners targeting non-tech sectors should apply this data with additional caution.
 </Accordion>
+
+---
+
+## Notebook 05 — 10 Bias Types Summary
+
+Notebook 05 (`05_estadistica_avanzada.ipynb`) formally catalogues the following 10 bias types affecting this dataset. The table maps each to the detailed limitation accordion above:
+
+| # | Bias Type (Notebook 05) | Detailed In |
+|---|------------------------|-------------|
+| 1 | Representation bias | Accordion 1 — Source Bias |
+| 2 | Location bias | Accordion 7 — Location Bias |
+| 3 | Salary information bias | Accordions 2 & 9 — Salary Information Bias / Midpoint Convention |
+| 4 | Seniority bias | Accordion 4 — Seniority Bias |
+| 5 | Work modality bias | Accordion 3 — Work Modality Bias |
+| 6 | Contract type bias | Accordion 5 — Contract Type Bias |
+| 7 | Sector bias | Accordion 15 — Sector Over-representation |
+| 8 | Temporal bias | Accordion 10 — Temporal Bias |
+| 9 | Source bias | Accordions 1 & 11 — Source Bias / Stack Overflow |
+| 10 | Skills/description bias | Accordion 6 — Skills and Description Bias |
 
 ---
 
@@ -121,8 +152,11 @@ The table below summarises the direction of the most significant biases in the d
 | Salary level | Inflated upward | International offers in `df_jobs` |
 | Salary coverage | Biased to `df_jobs` | High null rate in `df_tecno` |
 | Work modality | `unknown` inflated | Free-text modality descriptions not captured |
+| Contract type | Under-reported | Inconsistent structured fields across sources |
 | Seniority representation | Senior roles over-represented | Formal JD conventions; junior roles often informal |
 | Sector | Tech sector over-represented | Platform and source selection |
+| Skills/description | Explicit mentions over-counted | Keyword extraction misses implicit requirements |
+| Temporal coverage | Snapshot only, slight misalignment | Different collection windows per source |
 | Data completeness | English-language offers better populated | Multinational JD template conventions |
 
 These biases do not invalidate the analysis — they define its scope. The EDA Roles de Datos en España project is most reliable as a picture of the **internationally visible, tech-sector, Madrid/Barcelona-concentrated segment** of the Spanish data job market. Readers who keep this scope in mind will find the findings genuinely informative; readers who treat them as representative of the full Spanish labour market risk drawing overconfident conclusions.

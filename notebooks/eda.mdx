@@ -1,12 +1,12 @@
 ---
 title: "Exploratory Data Analysis: Diagnosing the Job Market"
 sidebarTitle: "EDA"
-description: "A diagnostic EDA of 1,542 unified Spanish data-role offers — covering structure, nulls, roles, locations, salaries, skills, and Stack Overflow technology trends."
+description: "Diagnostic EDA of 2,167 Spanish data-role offers — structure, nulls, roles, locations, salaries, skills, and Stack Overflow technology trends."
 ---
 
 The EDA notebook (`03_eda.ipynb`) is explicitly positioned as a **diagnostic phase**, not an inferential one. Its job is to reveal the shape of the data, surface patterns, and flag limitations — not to draw final conclusions. Everything produced here feeds directly into the visualisation and bias-analysis notebooks that follow.
 
-The primary dataset is `jobs_all_clean.csv`, the 1,542-offer unified file produced by the cleaning pipeline. Several auxiliary datasets are loaded alongside it to allow cross-source comparisons.
+The primary dataset is `jobs_all_clean.csv`, the 2,167-offer unified file produced by the cleaning pipeline. Several auxiliary datasets are loaded alongside it to allow cross-source comparisons.
 
 ## Imports and configuration
 
@@ -82,10 +82,10 @@ The notebook works through 20 numbered sections. The table below summarises the 
 
 <CardGroup cols={2}>
   <Card title="Dataset size" icon="table">
-    **1,542 offers, 17 columns** in the unified dataset. The working EDA copy gains additional derived columns (e.g. `post_date_parsed`, `post_month`, `work_modality`, `job_family`).
+    **2,167 offers, 17 columns** in the unified dataset as loaded by the EDA notebook. The working EDA copy gains additional derived columns (e.g. `post_date_parsed`, `post_month`, `work_modality`, `job_family`).
   </Card>
   <Card title="Largest source" icon="database">
-    `df_jobs` contributes **942 records**, making it the dominant source. Results must be interpreted with this weight in mind.
+    `df_jobs` contributes **942 records** (43.47 % of the unified dataset), making it the dominant source. Results must be interpreted with this weight in mind.
   </Card>
   <Card title="Most frequent role family" icon="user-tie">
     **data_science_ai** is the most common job family derived from `job_title` classification. This reflects both the composition of the source datasets and genuine market demand.
@@ -97,7 +97,7 @@ The notebook works through 20 numbered sections. The table below summarises the 
     **unknown** is the most frequent `work_modality` value — many offers simply do not specify remote, hybrid, or on-site. This is itself a finding relevant to the bias analysis.
   </Card>
   <Card title="Salary availability" icon="euro-sign">
-    `salary_clean` is available for **69.46 %** of offers. The remaining ~30 % are structurally absent and should be treated as missing at random until proven otherwise.
+    `salary_clean` is available for **50.95 %** of offers. The remaining ~49 % are structurally absent and should be treated as missing at random until proven otherwise.
   </Card>
   <Card title="Top skill" icon="code">
     **python** is the most frequently mentioned skill in `job_skills_long`, appearing more often than SQL, which ranks second.

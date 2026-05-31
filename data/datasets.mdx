@@ -18,7 +18,7 @@ These files contain the cleaned and unified job posting records. They are produc
 
 <CardGroup cols={2}>
   <Card title="jobs_all_clean.csv" icon="database">
-    The **primary unified dataset**. All three job offer sources (df\_jobs, df\_tecno, df\_scraping) merged into a single file with 17 standardized columns, including cleaned salary, city, and remote-work flags. **1,542 rows.**
+    The **primary unified dataset**. All three job offer sources (df\_jobs, df\_tecno, df\_scraping) merged into a single file with 17 standardized columns, including cleaned salary, city, and remote-work flags. **2,175 rows.**
   </Card>
   <Card title="jobs_clean.csv" icon="briefcase">
     Cleaned version of the `data_science_job_posts_2025.csv` source only (df\_jobs). Contains richer metadata columns such as `status`, `headquarter`, `ownership`, `company_size`, and `revenue` not present in the merged file. **944 rows.**
@@ -140,7 +140,7 @@ These files are written by `03_eda.ipynb` during analysis. They capture intermed
 
 | File | Location | Rows | Notebook |
 |---|---|---|---|
-| `jobs_all_clean.csv` | `data/clean/` | 1,542 | `02_cleaning.ipynb` |
+| `jobs_all_clean.csv` | `data/clean/` | 2,175 | `02_cleaning.ipynb` |
 | `jobs_clean.csv` | `data/clean/` | 944 | `02_cleaning.ipynb` |
 | `tecno_jobs_clean.csv` | `data/clean/` | 608 | `02_cleaning.ipynb` |
 | `scraping_jobs_template.csv` | `data/clean/` | 0 (headers only) | `01_data_collection.ipynb` |

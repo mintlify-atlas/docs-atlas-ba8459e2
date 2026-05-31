@@ -1,7 +1,7 @@
 ---
 title: "Technology Rankings: Stack Overflow 2025 Developer Survey"
 sidebarTitle: Tech Rankings
-description: "Used vs. wanted technology rankings from the Stack Overflow 2025 survey across AI tools, languages, databases, cloud, and frameworks — with gap analysis."
+description: "Used vs. wanted technology rankings from the Stack Overflow 2025 survey: AI tools, languages, databases, platforms, and frameworks with gap analysis."
 ---
 
 Technology demand in the Spanish data job market can be understood from two complementary angles: what skills employers list in job postings, and what technologies the global developer community is actively using and aspiring to learn. This page covers the latter, derived from the **Stack Overflow Developer Survey 2025**.
@@ -23,7 +23,7 @@ This distinction enables a **gap analysis**: technologies with high `wanted` but
 
 ## Technology Categories
 
-The `technology_rankings.csv` dataset covers the following categories:
+The `technology_rankings.csv` dataset covers the following six categories:
 
 <CardGroup cols={2}>
   <Card title="ai_model_tool" icon="robot">
@@ -35,14 +35,14 @@ The `technology_rankings.csv` dataset covers the following categories:
   <Card title="database" icon="database">
     Databases and data stores: PostgreSQL, MySQL, MongoDB, Redis, Snowflake, BigQuery, and more.
   </Card>
-  <Card title="platform" icon="server">
-    Platforms and operating environments including cloud-hosted development platforms.
+  <Card title="platform_cloud" icon="cloud">
+    Cloud platforms and operating environments: AWS, Azure, GCP, and associated managed services.
   </Card>
-  <Card title="webframe" icon="globe">
+  <Card title="web_framework" icon="globe">
     Web frameworks and libraries: React, Django, FastAPI, Node.js, and similar tools.
   </Card>
-  <Card title="cloud" icon="cloud">
-    Cloud providers and services: AWS, Azure, GCP, and associated managed services.
+  <Card title="development_environment" icon="terminal">
+    Development environments and IDEs: VS Code, Neovim, JetBrains IDEs, GitHub Copilot, Claude Code, and similar tools.
   </Card>
 </CardGroup>
 
@@ -53,12 +53,12 @@ The `ai_model_tool` category is particularly relevant to the data roles landscap
 | Rank | Technology | Used Count |
 |------|-----------|-----------|
 | 1 | openAI GPT (chatbot models) | 13,424 |
-| 2 | Anthropic Claude Sonnet | 7,063 |
-| 3 | Gemini Flash (general purpose models) | 5,823 |
+| 2 | Anthropic: Claude Sonnet | 7,063 |
+| 3 | Gemini (Flash general purpose models) | 5,823 |
 | 4 | openAI Reasoning models | 5,716 |
 
 <Info>
-  The gap between rank 1 (openAI GPT at 13,424) and rank 2 (Claude Sonnet at 7,063) is substantial — GPT models have approximately twice the usage count of the next most-used AI tool. This likely reflects both early market entry and broad enterprise integration of the OpenAI API.
+  The gap between rank 1 (openAI GPT at 13,424) and rank 2 (Anthropic: Claude Sonnet at 7,063) is substantial — GPT models have approximately twice the usage count of the next most-used AI tool. This likely reflects both early market entry and broad enterprise integration of the OpenAI API.
 </Info>
 
 ## Used vs. Wanted Gap Analysis
@@ -112,9 +112,9 @@ print(gap.sort_values('gap', ascending=False).head(10))
 
 | Column | Type | Description |
 |--------|------|-------------|
-| `technology` | string | Name of the technology as reported in the Stack Overflow survey |
-| `category` | string | Technology category (e.g., `ai_model_tool`, `language`, `database`) |
+| `category` | string | Technology category (e.g., `ai_model_tool`, `language`, `database`, `platform_cloud`, `web_framework`, `development_environment`) |
 | `type` | string | Either `used` or `wanted` |
+| `technology` | string | Name of the technology as reported in the Stack Overflow survey |
 | `count` | integer | Number of survey respondents who selected this technology for the given type |
 
 </Accordion>

@@ -15,13 +15,13 @@ The data job market in Spain is growing fast, but published salary figures are s
 The analysis starts from three raw datasets, each with distinct characteristics and limitations.
 
 <CardGroup cols={3}>
-  <Card title="Tecnoempleo Spain 2026" icon="briefcase">
+  <Card title="Tecnoempleo Spain 2026" icon="briefcase" href="data/sources">
     **600 local job offers** scraped from Tecnoempleo, a Spanish tech job board. Covers Spanish-market roles with local context, but **78% of salary fields are null** — making direct salary analysis on this source unreliable without augmentation.
   </Card>
-  <Card title="Data Science Job Posts 2025" icon="globe">
+  <Card title="Data Science Job Posts 2025" icon="globe" href="data/sources">
     **944 international offers**, of which **143 are based in Spain**. Provides broader role taxonomy and cross-market comparison, though international listings may not reflect local hiring conditions accurately.
   </Card>
-  <Card title="Stack Overflow Survey 2025" icon="chart-bar">
+  <Card title="Stack Overflow Survey 2025" icon="chart-bar" href="data/sources">
     Developer survey responses capturing **technology preferences and adoption trends**. Used primarily for skills and tooling analysis rather than job offer specifics. Most desired technology: **OpenAI GPT (chatbot models)**.
   </Card>
 </CardGroup>
@@ -43,16 +43,16 @@ To supplement the initial datasets — especially to improve salary coverage —
 ## Key Findings at a Glance
 
 <CardGroup cols={2}>
-  <Card title="Most Demanded Skill" icon="code">
+  <Card title="Most Demanded Skill" icon="code" href="results/technology-rankings">
     **Python** is the top skill requested across all data job families in Spain, appearing consistently in listings for data science, data engineering, and analytics roles.
   </Card>
-  <Card title="Dominant Location" icon="location-dot">
+  <Card title="Dominant Location" icon="location-dot" href="results/key-findings">
     **Madrid** is the dominant city for data roles, concentrating the largest share of listings by a significant margin over Barcelona and other Spanish cities.
   </Card>
-  <Card title="Top Job Family" icon="database">
+  <Card title="Top Job Family" icon="database" href="results/key-findings">
     **data_science_ai** is the most frequent job family in the unified dataset, reflecting strong employer demand for machine learning and AI-adjacent roles.
   </Card>
-  <Card title="Salary Coverage" icon="euro-sign">
+  <Card title="Salary Coverage" icon="euro-sign" href="results/salary-analysis">
     Salary data is available for **~69.46% of offers** in the final dataset — better than the raw sources, but still incomplete enough to warrant caution in salary-based comparisons.
   </Card>
 </CardGroup>

@@ -1,7 +1,7 @@
 ---
-title: "Quickstart: Run the EDA Pipeline Locally"
+title: "Quickstart: Run the EDA Notebooks Locally in Minutes"
 sidebarTitle: Quickstart
-description: Get the project running on your machine in minutes — clone the repo, install dependencies, configure credentials, and execute all five notebooks in order.
+description: Get the project running locally — clone the repo, install dependencies, configure credentials, and execute all five notebooks in order.
 ---
 
 This guide walks you through setting up the project locally and running the full five-notebook analysis pipeline. You can complete most of the analysis without API credentials — the Adzuna API is only required if you want to re-collect raw data from scratch.
@@ -154,10 +154,10 @@ Before you begin, make sure you have the following installed:
     Once the notebooks have run, results are available in two locations:
 
     <CardGroup cols={2}>
-      <Card title="Cleaned Datasets" icon="table">
+      <Card title="Cleaned Datasets" icon="table" href="data/datasets">
         All processed CSV files are saved to `data/clean/`. The primary unified dataset is `jobs_all_clean.csv` — **1,542 offers** with **17 columns**, including job family, location, salary, and skills.
       </Card>
-      <Card title="Generated Charts" icon="image">
+      <Card title="Generated Charts" icon="image" href="notebooks/visualizations">
         Visualizations produced by notebook 04 are saved to `images/`. These include skill frequency charts, geographic distribution maps, salary box plots, and treemaps by job family.
       </Card>
     </CardGroup>

@@ -1,5 +1,5 @@
 ---
-title: "Salary Analysis: Data Roles Job Market in Spain"
+title: "Salary Analysis: Spanish Data Roles Job Market 2025"
 sidebarTitle: Salary Analysis
 description: "Methodology, coverage gaps, source comparisons, and geographic and role-based salary distributions for data roles across the unified Spanish job dataset."
 ---
@@ -20,7 +20,7 @@ Salary data is not universally available across the three sources that make up t
 </CardGroup>
 
 <Warning>
-  Salary coverage is **highly uneven across sources**. `df_tecno` (Tecnoempleo) has approximately **78% null salary rate** — the vast majority of its listings do not publish a salary figure, which is a known characteristic of Spanish job boards. By contrast, `df_jobs` (the international source) has near-complete salary coverage. Any aggregate salary statistic is therefore weighted towards `df_jobs`, which introduces significant upward bias from non-Spanish, particularly US-based, salary figures.
+  **`df_jobs` (international/US salaries) significantly inflates the overall salary distribution compared to `df_tecno` (Spanish market offers).** `df_tecno` (Tecnoempleo) has approximately **78% null salary rate** — the vast majority of its listings do not publish a salary figure, which is a known characteristic of Spanish job boards. By contrast, `df_jobs` (the international source) has near-complete salary coverage but contains predominantly non-Spanish, US-market salaries that are substantially higher than Spanish equivalents. Any aggregate salary statistic computed over the full unified dataset is therefore weighted towards `df_jobs` and should not be read as representative of Spanish market compensation. Always stratify by `source_dataset` before drawing salary conclusions.
 </Warning>
 
 ## The `salary_clean` Methodology

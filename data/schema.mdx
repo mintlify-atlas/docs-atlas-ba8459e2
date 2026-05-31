@@ -10,7 +10,7 @@ This page documents the column schemas for the three most frequently queried dat
 
 ## `jobs_all_clean.csv` — Main Unified Dataset
 
-The primary analysis table. Combines all three job-offer sources into 1,542 rows and 17 columns. The first 11 columns are present in all individual source files; the last 6 are derived during cleaning in `02_cleaning.ipynb`.
+The primary analysis table. Combines all three job-offer sources into 2,175 rows and 17 columns. The first 11 columns are present in all individual source files; the last 6 are derived during cleaning in `02_cleaning.ipynb`.
 
 ### Loading the dataset
 
@@ -21,7 +21,7 @@ from pathlib import Path
 DATA_CLEAN = Path("data/clean")
 df = pd.read_csv(DATA_CLEAN / "jobs_all_clean.csv")
 
-print(df.shape)          # (1542, 17)
+print(df.shape)          # (2175, 17)
 print(df.dtypes)
 print(df.isnull().sum())
 ```
@@ -49,7 +49,7 @@ print(skills_exploded['skills_list'].value_counts().head(10))
 ### Column reference
 
 <ResponseField name="job_id" type="string" required>
-  Unique offer identifier assigned during cleaning. Format: `job_00001` through `job_01542`.
+  Unique offer identifier assigned during cleaning. Format: `job_00001` through `job_02175`.
 
   **Example:** `job_00001`
 

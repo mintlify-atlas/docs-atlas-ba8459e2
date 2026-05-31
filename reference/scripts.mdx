@@ -1,5 +1,5 @@
 ---
-title: "Scripts and Utility Reference for EDA Roles"
+title: "Scripts Reference: Notebook Word Document Generator"
 sidebarTitle: "Scripts"
 description: "Full reference for build_notebook_docx_guide.py — the script that generates a Word presentation guide covering notebooks 02 and 03."
 ---
@@ -74,7 +74,7 @@ The generated Word document is divided into nine logical sections:
 The main entry point. Instantiates a new `python-docx` `Document` object, calls every section builder in order, applies post-processing, and saves the result to `docs/guia_presentacion_notebooks_cleaning_eda.docx`.
 
 ```python
-def build_document() -> None:
+def build_document():
     """Orchestrates document creation and writes the output file."""
 ```
 
@@ -85,7 +85,7 @@ build_document()
   ├── configure_document(document)
   ├── [section builder calls...]
   ├── accent_document(document)
-  └── document.save("docs/guia_presentacion_notebooks_cleaning_eda.docx")
+  └── document.save(OUTPUT_PATH)  → docs/guia_presentacion_notebooks_cleaning_eda.docx
 ```
 
 ---
@@ -95,7 +95,7 @@ build_document()
 Applies global page setup to the Word document: page size, margins, default font, heading styles, and a footer with the project name.
 
 ```python
-def configure_document(document: Document) -> None:
+def configure_document(document):
     """Set page margins, font (Calibri), heading styles, and footer."""
 ```
 
@@ -106,23 +106,24 @@ def configure_document(document: Document) -> None:
   | Margins | 1 inch on all sides |
   | Default font | Calibri |
   | Heading 1 color | `#2E74B5` (blue) |
-  | Heading 2 color | `#1F4D78` (dark blue) |
-  | Footer | Project name, centred |
+  | Heading 2 color | `#2E74B5` (blue) |
+  | Heading 3 color | `#1F4D78` (dark blue) |
+  | Footer | Project name, right-aligned |
 </Accordion>
 
 ---
 
 ### `accent_document(document)`
 
-Performs a post-processing pass over all paragraph runs in the document to fix Spanish accent characters (`é`, `á`, `ó`, `í`, `ú`, `ñ`, `ü`) that may have been corrupted during string construction.
+Performs a post-processing pass over all paragraph runs in the document, replacing unaccented Spanish words with their correctly accented forms (e.g., `"Guia"` → `"Guía"`, `"analisis"` → `"análisis"`). The replacement dictionary covers common words used throughout the document.
 
 ```python
-def accent_document(document: Document) -> None:
-    """Fix Spanish accent characters across all runs in the document."""
+def accent_document(document):
+    """Apply Spanish accent corrections across all runs in the document."""
 ```
 
 <Note>
-  This function is called once at the end of `build_document()`, after all content has been added. It iterates over every paragraph in the document body and corrects encoding issues in each run's text.
+  This function is called once at the end of `build_document()`, after all content has been added. It iterates over every paragraph and table cell in the document body and applies string replacements to each run's text.
 </Note>
 
 ---
@@ -132,7 +133,7 @@ def accent_document(document: Document) -> None:
 Inserts a single-cell table styled as a callout box with a shaded background. Used for highlighted notes, warnings, or key takeaways within a section.
 
 ```python
-def add_callout(document: Document, title: str, body: str) -> None:
+def add_callout(document, title, body):
     """Add a shaded single-cell callout table with a bold title and body text."""
 ```
 
@@ -148,7 +149,7 @@ def add_callout(document: Document, title: str, body: str) -> None:
   </ParamField>
 </Accordion>
 
-Background color: `#E8EEF5` (light blue). Cell padding: 6 pt on all sides.
+Background color: `#F4F6F9` (off-white blue). Border color: `#D9E2EC`. Cell padding: 6 pt on all sides.
 
 ---
 
@@ -157,12 +158,7 @@ Background color: `#E8EEF5` (light blue). Cell padding: 6 pt on all sides.
 Inserts a two-column key-value table — the left column holds a label (bold) and the right column holds its detail. Suitable for dataset summaries, column listings, and parameter descriptions.
 
 ```python
-def add_label_detail_table(
-    document: Document,
-    rows: list[tuple[str, str]],
-    col_widths: list[float],
-    header: str | None = None,
-) -> None:
+def add_label_detail_table(document, rows, col_widths=(2700, 6660), header=None):
     """Add a two-column label–detail table with an optional header row."""
 ```
 
@@ -173,8 +169,8 @@ def add_label_detail_table(
   <ParamField path="rows" type="list[tuple[str, str]]" required>
     List of `(label, detail)` tuples. Each tuple becomes one row in the table.
   </ParamField>
-  <ParamField path="col_widths" type="list[float]" required>
-    Two-element list specifying the width in inches of the label column and the detail column respectively (e.g., `[2.0, 4.5]`).
+  <ParamField path="col_widths" type="tuple[int, int]" required>
+    Two-element tuple specifying the width in dxa units (twentieths of a point) of the label column and the detail column respectively. Default: `(2700, 6660)`.
   </ParamField>
   <ParamField path="header" type="str">
     Optional header string. When provided, a shaded header row spanning both columns is prepended to the table.
@@ -188,12 +184,7 @@ def add_label_detail_table(
 Inserts a multi-column matrix table with a styled header row. Used for comparisons, library listings, and structured data that requires more than two columns.
 
 ```python
-def add_matrix_table(
-    document: Document,
-    headers: list[str],
-    rows: list[list[str]],
-    widths: list[float],
-) -> None:
+def add_matrix_table(document, headers, rows, widths):
     """Add a full matrix table with a shaded header row and data rows."""
 ```
 
@@ -207,12 +198,12 @@ def add_matrix_table(
   <ParamField path="rows" type="list[list[str]]" required>
     Data rows. Each inner list is one table row; values map positionally to `headers`.
   </ParamField>
-  <ParamField path="widths" type="list[float]" required>
-    Column widths in inches. Must have the same length as `headers`.
+  <ParamField path="widths" type="list[int]" required>
+    Column widths in dxa units (twentieths of a point). Must have the same length as `headers`.
   </ParamField>
 </Accordion>
 
-Header row background: `#2E74B5` (blue) with white bold text.
+Header row background: `#E8EEF5` (light blue) with dark-blue (`#1F4D78`) bold text.
 
 ---
 
@@ -221,12 +212,7 @@ Header row background: `#2E74B5` (blue) with white bold text.
 Inserts a single paragraph with a specified Word paragraph style and an optional bold prefix string.
 
 ```python
-def add_paragraph(
-    document: Document,
-    text: str,
-    style: str = "Normal",
-    bold_prefix: str | None = None,
-) -> Paragraph:
+def add_paragraph(document, text="", style=None, bold_prefix=None):
     """Add a styled paragraph, optionally prefixed with a bold run."""
 ```
 
@@ -238,7 +224,7 @@ def add_paragraph(
     Main paragraph text, rendered in the specified style weight.
   </ParamField>
   <ParamField path="style" type="str">
-    Word paragraph style name (default: `"Normal"`). Common values used in this script: `"Heading 1"`, `"Heading 2"`, `"Normal"`.
+    Word paragraph style name (default: `None`, which Word renders as Normal). Common values used in this script: `"Heading 1"`, `"Heading 2"`, `"Normal"`.
   </ParamField>
   <ParamField path="bold_prefix" type="str">
     When provided, this string is inserted as a bold run before the main `text`. Useful for inline labels such as `"Output:"` or `"Nota:"`.
@@ -252,7 +238,7 @@ def add_paragraph(
 Inserts a bulleted list using Word's built-in `"List Bullet"` paragraph style.
 
 ```python
-def add_bullets(document: Document, items: list[str]) -> None:
+def add_bullets(document, items):
     """Add a bulleted list. Each string in items becomes one bullet point."""
 ```
 
@@ -272,7 +258,7 @@ def add_bullets(document: Document, items: list[str]) -> None:
 Inserts a numbered list using Word's built-in `"List Number"` paragraph style.
 
 ```python
-def add_numbered(document: Document, items: list[str]) -> None:
+def add_numbered(document, items):
     """Add a numbered list. Each string in items becomes one numbered item."""
 ```
 
@@ -289,14 +275,16 @@ def add_numbered(document: Document, items: list[str]) -> None:
 
 ## Colour palette
 
-The script uses a four-colour palette consistent with the project's visual identity:
+The script defines six named colours used consistently throughout the document:
 
 | Name | Hex | Usage |
 |---|---|---|
-| Blue | `#2E74B5` | Heading 1, matrix table headers, title text |
-| Dark blue | `#1F4D78` | Heading 2 |
-| Light blue | `#E8EEF5` | Callout box backgrounds |
-| Light gray | `#F2F4F7` | Label-detail table header rows |
+| Blue | `#2E74B5` | Heading 1, Heading 2, label-detail table header text, title text |
+| Dark blue | `#1F4D78` | Heading 3, matrix table header text, label column bold text, title run |
+| Light blue | `#E8EEF5` | Label-detail table header row background, matrix table header row background |
+| Light gray | `#F2F4F7` | Label column (left cell) background in data rows of label-detail tables |
+| Border | `#B7C7D9` | Default table border colour |
+| Muted | `#595959` | Footer text |
 
 ---
 
@@ -320,7 +308,7 @@ def build_document():
     # ... existing section calls ...
     add_my_new_section(document)   # <-- add your call here
     accent_document(document)
-    document.save("docs/guia_presentacion_notebooks_cleaning_eda.docx")
+    document.save(OUTPUT_PATH)  # OUTPUT_PATH = PROJECT_ROOT / "docs" / "guia_presentacion_notebooks_cleaning_eda.docx"
 ```
 
 <Tip>

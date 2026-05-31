@@ -93,12 +93,12 @@ Offers collected programmatically via the [Adzuna REST API](https://developer.ad
 ### API endpoint
 
 ```
-GET https://api.adzuna.com/v1/api/jobs/gb/search/{page}
+GET https://api.adzuna.com/v1/api/jobs/es/search/{page}
   ?app_id={ADZUNA_APP_ID}
   &app_key={ADZUNA_APP_KEY}
   &results_per_page=50
   &what={query_term}
-  &where=Spain
+  &where={city}
 ```
 
 Substitute `{page}` with the page number (starting at 1) and `{query_term}` with the role query (e.g. `data+scientist`, `data+engineer`). The endpoint returns up to 50 results per request.

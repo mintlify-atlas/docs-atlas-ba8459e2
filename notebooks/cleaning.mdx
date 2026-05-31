@@ -1,7 +1,7 @@
 ---
-title: "Data Cleaning Pipeline: Standardizing Three Sources"
+title: "Data Cleaning: Unifying Four Raw Datasets"
 sidebarTitle: "Data Cleaning"
-description: "Full walkthrough of the cleaning pipeline that unifies df_jobs, df_tecno, df_stack, and df_scraping into consistent, analysis-ready CSV files."
+description: "Cleaning pipeline unifying four raw datasets into analysis-ready CSVs — column normalisation, salary parsing, and 11 automated validation checks."
 ---
 
 The cleaning notebook (`02_cleaning.ipynb`) is the connective tissue of the project. Its single responsibility is to take four raw, structurally different datasets and produce a family of clean, consistently named files that every downstream notebook can load without extra wrangling. The pipeline is written by Ele and covers everything from path resolution and column normalisation through salary parsing, location cleaning, and a suite of automated validation checks.
@@ -92,7 +92,7 @@ The project enforces a consistent style across all produced artefacts:
 <Accordion title="Block 6 — Offer unification">
   Vertically concatenates `df_jobs_clean`, `df_tecno_clean`, and `scraping_jobs_clean` (all sharing the same `job_standard_columns` schema) into `jobs_all_clean`. Assigns a unique `job_id` to every row and records `source_dataset` so the origin of each offer is traceable.
 
-  **Result: 1,542 offers, 17 columns.**
+  **Result: 2,167 offers, 12 columns.**
 </Accordion>
 
 <Accordion title="Block 7 — Skills, salaries, and locations">
@@ -102,7 +102,7 @@ The project enforces a consistent style across all produced artefacts:
 </Accordion>
 
 <Accordion title="Block 8 — Final validations">
-  Runs 10 automated checks covering required columns, uniqueness of `job_id`, snake_case compliance, boolean type of `is_remote`, numeric type of `salary_clean`, and presence of all expected output files. Results are saved to `cleaning_validation_summary.csv`.
+  Runs 11 automated checks covering required columns, non-empty assertion, uniqueness of `job_id`, snake_case compliance of Stack Overflow tech columns, `response_id` presence in technology datasets, boolean type of `is_remote`, numeric type of `salary_clean`, expected columns in `job_skills_long`, scraping integration consistency, and presence of all expected output files. Results are saved to `cleaning_validation_summary.csv`.
 </Accordion>
 
 ## Column standardisation maps
@@ -141,10 +141,11 @@ The project enforces a consistent style across all produced artefacts:
 
 | File | Rows | Key columns | Purpose |
 |------|------|-------------|---------|
-| `jobs_clean.csv` | 942 | `job_title, company, location, salary, skills, source_dataset` | Cleaned original job postings from df_jobs |
+| `jobs_clean.csv` | 944 | `job_title, company, location, salary, skills, source_dataset` | Cleaned original job postings from df_jobs |
 | `tecno_jobs_clean.csv` | 600 | `job_title, company, location, salary, job_type, post_date, link` | TecnoEmpleo offers with standardised English column names |
 | `scraping_jobs_clean.csv` | varies | all `job_standard_columns` | Adzuna-scraped offers adapted to the common schema |
-| `jobs_all_clean.csv` | **1,542** | `job_id, job_title, company, location, salary_clean, city_clean, is_remote` | **Unified dataset — primary input for EDA and visualisations** |
+| `scraping_jobs_template.csv` | 0 | all `job_standard_columns` | Empty header-only template written to `data/clean/` whether or not raw scraping data exists |
+| `jobs_all_clean.csv` | **2,167** | `job_id, job_title, company, location, salary_clean, city_clean, is_remote` | **Unified dataset — primary input for EDA and visualisations** |
 | `job_skills_long.csv` | varies | `job_id, job_title, source_dataset, skill` | One row per offer × skill — used for skill-frequency and gap analysis |
 | `stack_tech_columns_clean.csv` | survey rows | `response_id` + tech columns in snake_case | Reduced Stack Overflow base for technology analysis |
 | `technologies_clean_long_format.csv` | varies | `response_id, technology, category, type` | One row per respondent × technology — used and wanted |
@@ -152,7 +153,7 @@ The project enforces a consistent style across all produced artefacts:
 | `technology_rankings_used.csv` | 15+ | `technology, count` | Ranking of technologies respondents have worked with |
 | `technology_rankings_wanted.csv` | 15+ | `technology, count` | Ranking of technologies respondents want to work with |
 | `clean_datasets_dictionary.csv` | — | `file, rows, main_columns, intended_use` | Self-documenting index of all clean files |
-| `cleaning_validation_summary.csv` | 10 | `check, passed, detail` | Automated validation results for downstream verification |
+| `cleaning_validation_summary.csv` | 11 | `check, passed, detail` | Automated validation results for downstream verification |
 
 <Warning>
   `jobs_all_clean.csv` is assembled by a vertical concatenation (`pd.concat`), not a JOIN. There is no reliable common key between job offers and Stack Overflow responses, so the two families of datasets remain separate. Comparisons between offer skills and Stack Overflow technology preferences are aggregate indicators, not row-level matches.
